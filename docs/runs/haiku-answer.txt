@@ -1,0 +1,27 @@
+## Summary
+
+**Revenue dropped 1.3% from June to July 2026** ($324.0M → $319.9M, a decline of ~$4.1M). The root cause is a **significant drop in average order value in the paid search channel**.
+
+### Key Findings:
+
+**1. Paid Search Channel Collapsed** (q4)
+- Paid search revenue dropped **$12.2M** (15% decline)
+- This single channel accounts for the entire revenue drop—other channels actually grew:
+  - Organic: +$2.8M
+  - Partner: +$2.7M  
+  - Email: +$2.7M
+
+**2. The Problem: Average Order Value, Not Volume** (q5)
+- Paid search orders increased from 540K to 558K (+3.3%)
+- BUT average order value dropped **18%**: from $149.90 → $123.15
+- This $26.75 AOV decline across 558K orders = $12.2M revenue loss
+
+### Interpretation:
+
+Despite driving more orders in July, paid search is converting lower-value customers or selling lower-value products. This could indicate:
+- Traffic quality degradation (attracting lower-intent users)
+- Changed keyword mix or bidding strategy
+- Promotional pricing or discounts applied
+- Seasonal product mix shift to lower-priced items
+
+**CITED: q1, q4, q5**

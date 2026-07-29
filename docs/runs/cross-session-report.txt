@@ -1,0 +1,51 @@
+==============================================================================
+CROSS-SESSION ANALYSIS — 8 agent sessions, 41 queries
+==============================================================================
+
+── PER-SESSION ───────────────────────────────────────────────
+  session    queries anchors grounded
+  aov              5       5        5
+  drop             7       4        7
+  anomaly          5       4        5
+  growth           3       1        3
+  emea             2       1        2
+  mix              7       2        6
+  refunds          9       4        3
+  daily            3       2        3
+
+── CROSS-SESSION REDUNDANCY ──────────────────────────────────
+  queries across all sessions      41
+  anchors needed per-session (sum) 23
+  anchors needed GLOBALLY          20  covering 25/29
+  excluded as unmodellable         12  (parser declined rather than guess)
+  modelled but uncovered           4
+
+  CROSS-SESSION REDUNDANCY         13.0%
+  (share of per-session rollups made unnecessary by sharing across sessions)
+  dedup vs COVERED queries         20.0%   (20 anchors serve 25)
+  dedup vs MODELLED queries        31.0%
+
+  Shared anchors — each serves queries from multiple sessions:
+    covers   4 queries across 2 session(s)  [obs. ]
+      select date_trunc('month',order_date), region, count(*), sum(amount) from orders where order
+    covers   2 queries across 2 session(s)  [obs. ]
+      select order_date::date, count(*), sum(amount) from orders where order_date < '2026-08-01' a
+    covers   2 queries across 2 session(s)  [obs. ]
+      select channel, date_trunc('month',order_date), count(*), sum(amount) from orders where orde
+    covers   1 queries across 1 session(s)  [SYNTH]
+      select channel, order_date::date, region, count(*), max(amount), min(amount), sum(amount) fr
+    covers   1 queries across 1 session(s)  [obs. ]
+      select date_trunc('month',refund_date), count(*), sum(amount) from refunds where refund_date
+    covers   1 queries across 1 session(s)  [obs. ]
+      select order_date::date, count(*) from orders where channel = 'paid_search' and order_date <
+
+── COST ──────────────────────────────────────────────────────
+  billed warehouse-seconds         1116s   $0.930
+  productive (query exec) seconds  851.3s   $0.709
+  idle + cold-start tax            265s   $0.221   (23.7%)
+  cost per session                 $0.116
+
+── CITATION VERIFICATION (all sessions) ──────────────────────
+  self-reported as cited           35/41
+  verified grounded in the answer  34/41
+

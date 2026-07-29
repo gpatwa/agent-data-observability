@@ -4,3 +4,6 @@ out/*
 !out/.gitkeep
 *.log
 .DS_Store
+
+# keep saved run evidence despite the *.log rule above
+!docs/runs/*.log

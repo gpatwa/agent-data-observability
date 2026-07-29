@@ -17,10 +17,35 @@ import { createHash, randomBytes } from 'node:crypto';
 import { serializeContext } from './context.mjs';
 import { PG } from './config.mjs';
 
-const EVENTS_PATH = new URL('../out/agent-events.jsonl', import.meta.url);
+const EVENTS_PATH = process.env.TRACE_EVENTS_PATH
+  ? new URL(`file://${process.env.TRACE_EVENTS_PATH}`)
+  : new URL('../out/agent-events.jsonl', import.meta.url);
 const TRACE_ID = randomBytes(8).toString('hex');
 const AGENT_ID = process.env.AGENT_ID ?? 'claude-code-analyst';
 const MODEL_ID = process.env.AGENT_MODEL ?? 'claude-opus-5';
+const QUESTION = process.env.TRACE_QUESTION ?? null;
+
+// Scalar values from a result set, used later to verify — rather than trust —
+// which query results actually reached the agent's final answer.
+function scalarValues(rows) {
+  const out = new Set();
+  for (const row of rows.slice(0, 200)) {
+    for (const v of Object.values(row)) {
+      if (v == null) continue;
+      if (v instanceof Date) { out.add(v.toISOString().slice(0, 10)); continue; }
+      if (typeof v === 'number') { out.add(v); continue; }
+      // pg returns numeric/bigint columns as STRINGS. Keeping them as strings
+      // makes them substring-matched later, which never fires against rounded
+      // prose ("69.33" vs "69.331240..."). Coerce to Number so the verifier
+      // compares them numerically, with tolerance.
+      const s = typeof v === 'string' ? v : String(v);
+      if (/^-?\d+(\.\d+)?$/.test(s.trim())) out.add(Number(s));
+      else if (s.length <= 64) out.add(s);
+    }
+    if (out.size > 400) break;
+  }
+  return [...out];
+}
 
 const client = new pg.Client(PG);
 await client.connect();
@@ -120,6 +145,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       result_hash: createHash('sha1').update(JSON.stringify(rows)).digest('hex').slice(0, 12),
       rows: rows.length,
       client_ms: clientMs,
+      values: scalarValues(rows),
+      question: QUESTION,
       error,
     }) + '\n'
   );

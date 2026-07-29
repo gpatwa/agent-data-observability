@@ -5,7 +5,8 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "demo": "./scripts/demo.sh"
+    "demo": "./scripts/demo.sh",
+    "test": "node --test \"test/**/*.test.mjs\""
   },
   "keywords": [
     "ai-agents",
@@ -19,6 +20,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "node-sql-parser": "^5.4.0",
     "pg": "^8.16.3"
   }
 }

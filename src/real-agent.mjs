@@ -2,26 +2,27 @@
 //
 // The agent's only tool is `run_sql`, served by src/mcp-db-server.mjs. Every
 // query it issues is tagged and lands in the Postgres log; the plan tree is
-// reconstructed from that log exactly as in the simulated run.
+// reconstructed from that log exactly as for the simulated agent.
 //
-// Usage:  node src/real-agent.mjs "Why did revenue drop in July 2026?"
+//   node src/real-agent.mjs "Why did revenue drop in July 2026?"
+//   node src/real-agent.mjs "..." --model claude-haiku-4-5 --tag haiku
+//
+// Exported as runAgent() so cross-session.mjs can fan out over many questions.
 
 import { spawn } from 'node:child_process';
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { verify, parseCited } from './verify-citations.mjs';
 
 const ROOT = new URL('..', import.meta.url);
-const EVENTS = fileURLToPath(new URL('out/agent-events.jsonl', ROOT));
-const MCP_CONFIG = fileURLToPath(new URL('out/mcp-config.json', ROOT));
+const OUT = fileURLToPath(new URL('out/', ROOT));
 const SERVER = fileURLToPath(new URL('src/mcp-db-server.mjs', ROOT));
-
-const TASK = process.argv[2] ?? 'Why did revenue drop in July 2026?';
 
 const SYSTEM_APPEND = `
 You are a data analyst with access to one tool: run_sql, against a PostgreSQL
 analytics warehouse. You have no filesystem and no other tools.
 
-Work the question until you can name a specific cause with evidence.
+Work the question until you can answer it with evidence.
 
 Two requirements on how you use run_sql:
   - Always pass a short "intent" describing what you are trying to learn.
@@ -34,71 +35,103 @@ whose results actually support your conclusion:
 CITED: q1, q4, q9
 `.trim();
 
-function run() {
+export function runAgent({ question, model = null, tag = 'agent' }) {
+  mkdirSync(OUT, { recursive: true });
+  const eventsPath = `${OUT}${tag}-events.jsonl`;
+  const answerPath = `${OUT}${tag}-answer.txt`;
+  const configPath = `${OUT}${tag}-mcp.json`;
+
   writeFileSync(
-    MCP_CONFIG,
-    JSON.stringify(
-      { mcpServers: { 'traced-warehouse': { command: 'node', args: [SERVER] } } },
-      null,
-      2
-    )
+    configPath,
+    JSON.stringify({
+      mcpServers: {
+        'traced-warehouse': {
+          command: 'node',
+          args: [SERVER],
+          env: {
+            TRACE_EVENTS_PATH: eventsPath,
+            TRACE_QUESTION: question,
+            AGENT_MODEL: model ?? 'claude-opus-5',
+            AGENT_ID: `claude-code-${tag}`,
+          },
+        },
+      },
+    })
   );
-  writeFileSync(EVENTS, '');
+  writeFileSync(eventsPath, '');
 
   const args = [
-    '-p', TASK,
-    '--mcp-config', MCP_CONFIG,
+    '-p', question,
+    '--mcp-config', configPath,
     '--allowedTools', 'mcp__traced-warehouse__run_sql',
     '--append-system-prompt', SYSTEM_APPEND,
     '--output-format', 'json',
   ];
+  if (model) args.push('--model', model);
 
-  console.log(`==> launching real agent: "${TASK}"`);
-  const child = spawn('claude', args, { stdio: ['ignore', 'pipe', 'inherit'] });
+  return new Promise((resolve) => {
+    const child = spawn('claude', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '';
+    let err = '';
+    child.stdout.on('data', (d) => { out += d; });
+    child.stderr.on('data', (d) => { err += d; });
 
-  let out = '';
-  child.stdout.on('data', (d) => { out += d; });
+    child.on('close', (code) => {
+      let answer = out;
+      let cost = null;
+      let turns = null;
+      try {
+        const parsed = JSON.parse(out);
+        answer = parsed.result ?? out;
+        cost = parsed.total_cost_usd ?? null;
+        turns = parsed.num_turns ?? null;
+      } catch { /* not JSON — treat stdout as the answer */ }
 
-  child.on('close', (code) => {
-    if (code !== 0) {
-      console.error(`claude exited ${code}`);
-      process.exit(code ?? 1);
-    }
-    let answer = out;
-    try {
-      const parsed = JSON.parse(out);
-      answer = parsed.result ?? out;
-      if (parsed.total_cost_usd != null) {
-        console.log(`\n==> agent LLM cost: $${parsed.total_cost_usd.toFixed(4)}, turns: ${parsed.num_turns}`);
+      if (code !== 0) {
+        console.error(`  [${tag}] claude exited ${code}: ${err.slice(0, 300)}`);
+        return resolve({ tag, question, model, ok: false, queries: 0 });
       }
-    } catch { /* not JSON — treat the whole stdout as the answer */ }
 
-    console.log('\n──── AGENT ANSWER ───────────────────────────────────────────────\n');
-    console.log(answer.trim());
-    console.log('\n─────────────────────────────────────────────────────────────────');
-
-    markCited(answer);
+      writeFileSync(answerPath, answer);
+      const stats = scoreRun(eventsPath, answer);
+      resolve({ tag, question, model, ok: true, cost, turns, answerPath, eventsPath, ...stats });
+    });
   });
 }
 
-// The half the warehouse cannot see: which results actually reached the answer.
-function markCited(answer) {
-  if (!existsSync(EVENTS)) return;
-  const m = answer.match(/^\s*CITED:\s*(.+)$/mi);
-  const cited = new Set(
-    m ? m[1].split(/[,\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean) : []
-  );
-
-  const events = readFileSync(EVENTS, 'utf8')
+// Records both the agent's claim and the verified grounding for each query.
+function scoreRun(eventsPath, answer) {
+  if (!existsSync(eventsPath)) return { queries: 0 };
+  const events = readFileSync(eventsPath, 'utf8')
     .split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  if (!events.length) return { queries: 0 };
 
-  for (const e of events) e.used_downstream = cited.has(e.label);
-  writeFileSync(EVENTS, events.map((e) => JSON.stringify(e)).join('\n'));
+  const claimed = parseCited(answer) ?? new Set();
+  for (const e of events) e.used_downstream = claimed.has(e.label);
 
-  const unmatched = [...cited].filter((c) => !events.some((e) => e.label === c));
-  console.log(`\n==> ${events.length} queries issued, ${events.filter((e) => e.used_downstream).length} cited by the agent`);
-  if (!m) console.log('    (no CITED line found — used_downstream recorded as false for all)');
-  if (unmatched.length) console.log(`    (cited but never issued: ${unmatched.join(', ')})`);
+  const verified = verify(events, answer);
+  writeFileSync(eventsPath, verified.map((e) => JSON.stringify(e)).join('\n'));
+
+  return {
+    queries: verified.length,
+    claimed: verified.filter((e) => e.used_downstream).length,
+    grounded: verified.filter((e) => e.grounded).length,
+    unique: verified.filter((e) => e.uniquely_grounded).length,
+  };
 }
 
-run();
+// --- CLI ------------------------------------------------------------------
+if (process.argv[1]?.endsWith('real-agent.mjs')) {
+  const question = process.argv[2] ?? 'Why did revenue drop in July 2026?';
+  const modelIdx = process.argv.indexOf('--model');
+  const tagIdx = process.argv.indexOf('--tag');
+  const model = modelIdx > -1 ? process.argv[modelIdx + 1] : null;
+  const tag = tagIdx > -1 ? process.argv[tagIdx + 1] : 'agent';
+
+  console.log(`==> ${tag}: "${question}"${model ? ` [${model}]` : ''}`);
+  const r = await runAgent({ question, model, tag });
+  if (!r.ok) process.exit(1);
+  console.log(`\n${readFileSync(r.answerPath, 'utf8').trim()}\n`);
+  console.log(`==> ${r.queries} queries · claimed ${r.claimed} · grounded ${r.grounded} · uniquely grounded ${r.unique}`);
+  if (r.cost != null) console.log(`==> LLM cost $${r.cost.toFixed(4)}, ${r.turns} turns`);
+}
