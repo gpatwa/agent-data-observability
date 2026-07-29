@@ -73,7 +73,7 @@ Reproduce with `./scripts/demo.sh` (simulated) and `node src/real-agent.mjs` (re
 
 The observability primitive stands — the trace reconstructed cleanly from the Postgres log for both agents, and cost-per-resolved-task is measurable where it wasn't before. The *optimization* thesis built on top of it is much weaker than the simulation suggested: on this evidence, the money is in scheduling and warehouse economics, not in deduplicating agent speculation.
 
-A fuller write-up with the reconstructed plan tree is in [`docs/design-note.html`](docs/design-note.html) (written against the simulated run — read this section first).
+A fuller write-up — both plan trees side by side, the fingerprint tiers, and what the result does to the product thesis — is in [`docs/design-note.html`](docs/design-note.html).
 
 ---
 
