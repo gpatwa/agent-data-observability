@@ -8,6 +8,8 @@ I built the trace primitive needed to measure it, then measured it against real 
 
 **The prize did not show up.** This repo is the harness, the evidence, and an honest account of what failed.
 
+📉 **[Read the findings](https://gpatwa.github.io/agent-data-observability/)** — six conditions, one chart, and the six bugs I hit getting there.
+
 ---
 
 ## Headline

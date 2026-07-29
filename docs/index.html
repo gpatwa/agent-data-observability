@@ -1,0 +1,316 @@
+<title>Agents don't flood your warehouse &#8212; six conditions, measured</title>
+<style>
+  /* Deliberately single-theme: this page commits to one dark visual world &#8212;
+     an instrument readout &#8212; rather than adapting to the viewer's preference.
+     Chart fills are the dark-mode categorical steps 1 and 2, validated against
+     this surface (CVD &#916;E 26.8 protan, normal-vision 31.8, contrast >= 3:1). */
+  :root, :root[data-theme="dark"], :root[data-theme="light"] {
+    --ground:#0E1315; --surface:#151D1F; --surface-2:#1D2729; --sunken:#080C0D;
+    --ink:#E6EDEE; --ink-2:#C4D1D2; --muted:#889A9D; --rule:#263336;
+    --accent:#3FB3B8; --accent-soft:#3FB3B81F;
+    --warn:#E0904F; --warn-soft:#E0904F1F;
+    --sunken-ink:#D6E3E4; --sunken-muted:#7E9295;
+    --observed:#3987e5; --predicted:#d95926;
+    --band:#E0904F1A;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --serif: ui-serif, Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+    --s1:.4rem; --s2:.75rem; --s3:1.25rem; --s4:2rem; --s5:3.25rem; --s6:5rem;
+    color-scheme: dark;
+  }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--serif); font-size:17px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1000px; margin:0 auto; padding:var(--s5) var(--s3) var(--s6); display:flex; flex-direction:column; gap:var(--s5); }
+  .col { max-width:66ch; }
+  h1,h2,h3,.label,.mono { font-family:var(--mono); }
+  h1 { font-size:clamp(1.9rem,5vw,3.1rem); line-height:1.08; letter-spacing:-.035em; font-weight:600; text-wrap:balance; margin:0; }
+  h2 { font-size:1.1rem; letter-spacing:-.01em; font-weight:600; margin:0; }
+  h3 { font-size:.82rem; letter-spacing:.02em; font-weight:600; margin:0; color:var(--muted); text-transform:uppercase; }
+  p { margin:0; }
+  .col p + p { margin-top:var(--s2); }
+  code { font-family:var(--mono); font-size:.85em; background:var(--surface-2); padding:.1em .35em; border-radius:3px; }
+  a { color:var(--accent); }
+  .label { font-size:.67rem; text-transform:uppercase; letter-spacing:.14em; color:var(--muted); font-weight:600; }
+  section { display:flex; flex-direction:column; gap:var(--s3); }
+
+  /* ---------- hero ---------- */
+  .hero { display:flex; flex-direction:column; gap:var(--s3); }
+  .eyebrow { display:flex; flex-wrap:wrap; gap:var(--s2) var(--s3); align-items:baseline; }
+  .dek { font-size:1.2rem; color:var(--ink-2); max-width:60ch; text-wrap:pretty; }
+
+  /* ---------- chart ---------- */
+  figure { margin:0; background:var(--surface); border:1px solid var(--rule); border-radius:8px; padding:var(--s3); display:flex; flex-direction:column; gap:var(--s3); }
+  figcaption { display:flex; flex-direction:column; gap:.3rem; }
+  .fig-title { font-family:var(--mono); font-size:.95rem; font-weight:600; }
+  .fig-sub { font-size:.9rem; color:var(--muted); }
+
+  .chart { display:flex; flex-direction:column; gap:2px; }
+  /* Trailing gutter column: value labels sit outside their bar, so the longest
+     bar (89.9%) needs somewhere to put its label that isn't the page edge. */
+  .row { display:grid; grid-template-columns:minmax(0,13rem) 1fr 3.4rem; gap:var(--s3); align-items:center; padding:.28rem 0; border-radius:4px; }
+  .row:hover { background:var(--surface-2); }
+  .rname { font-family:var(--mono); font-size:.78rem; color:var(--ink-2); text-align:right; line-height:1.3; }
+  .rname .n { color:var(--muted); font-size:.9em; }
+  .track { position:relative; height:22px; display:flex; align-items:center; }
+  .band { position:absolute; inset:0 0 0 80%; background:var(--band); border-left:1px dashed var(--warn); border-radius:0 3px 3px 0; }
+  .bar { position:relative; height:14px; border-radius:0 4px 4px 0; background:var(--observed); }
+  .bar.pred { background:var(--predicted); }
+  .val { position:absolute; left:calc(100% + .5rem); top:50%; transform:translateY(-50%); font-family:var(--mono); font-size:.76rem; font-variant-numeric:tabular-nums; color:var(--ink); white-space:nowrap; }
+  .axis { display:grid; grid-template-columns:minmax(0,13rem) 1fr 3.4rem; gap:var(--s3); margin-top:var(--s1); }
+  .ticks { position:relative; height:1.4rem; border-top:1px solid var(--rule); }
+  .tick { position:absolute; top:.25rem; font-family:var(--mono); font-size:.68rem; color:var(--muted); transform:translateX(-50%); }
+  .bandlabel { position:absolute; left:80%; top:.25rem; font-family:var(--mono); font-size:.68rem; color:var(--warn); padding-left:.4rem; }
+  .legend { display:flex; flex-wrap:wrap; gap:var(--s3); font-family:var(--mono); font-size:.74rem; color:var(--ink-2); }
+  .key { display:inline-flex; align-items:center; gap:.45rem; }
+  .key i { width:11px; height:11px; border-radius:2px; display:inline-block; }
+
+  details.tableview { border-top:1px solid var(--rule); padding-top:var(--s2); }
+  details.tableview summary { font-family:var(--mono); font-size:.75rem; color:var(--muted); cursor:pointer; }
+  details.tableview summary:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+
+  .tw { overflow-x:auto; border:1px solid var(--rule); border-radius:6px; background:var(--surface); margin-top:var(--s2); }
+  table { border-collapse:collapse; width:100%; font-size:.86rem; }
+  th, td { text-align:left; padding:.55rem var(--s2); border-bottom:1px solid var(--rule); }
+  th { font-family:var(--mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); font-weight:600; white-space:nowrap; }
+  tbody tr:last-child td { border-bottom:0; }
+  td.num { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+  /* ---------- misc ---------- */
+  .panel { background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:var(--s3); display:flex; flex-direction:column; gap:var(--s2); }
+  .logline { font-family:var(--mono); font-size:.72rem; line-height:1.7; color:var(--sunken-ink); white-space:pre; background:var(--sunken); border-radius:6px; padding:var(--s3); overflow-x:auto; }
+  .logline .tag { color:#7fd4d8; }
+  .logline .ts { color:var(--sunken-muted); }
+
+  .bugs { display:flex; flex-direction:column; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:6px; overflow:hidden; }
+  .bug { background:var(--surface); padding:var(--s3) ; display:flex; flex-direction:column; gap:.3rem; }
+  .bug .bt { font-family:var(--mono); font-size:.82rem; font-weight:600; }
+  .bug .bd { color:var(--ink-2); font-size:.93rem; }
+  .bug .bx { font-family:var(--mono); font-size:.74rem; color:var(--warn); }
+
+  ul { margin:0; padding-left:1.1rem; display:flex; flex-direction:column; gap:var(--s1); }
+  li::marker { color:var(--muted); }
+  .callout { border-left:3px solid var(--accent); background:var(--accent-soft); padding:var(--s2) var(--s3); border-radius:0 5px 5px 0; }
+  .rule { border:0; border-top:1px solid var(--rule); margin:0; }
+  .foot { color:var(--muted); font-size:.84rem; }
+  .cta { display:flex; flex-wrap:wrap; gap:var(--s2); }
+  .cta a { font-family:var(--mono); font-size:.8rem; text-decoration:none; border:1px solid var(--rule); background:var(--surface); padding:.55rem .9rem; border-radius:5px; color:var(--ink); }
+  .cta a.primary { border-color:var(--accent); color:var(--accent); }
+  .cta a:hover { background:var(--surface-2); }
+  .cta a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  @media (max-width:720px) {
+    body { font-size:16px; }
+    .wrap { padding:var(--s4) var(--s2) var(--s5); gap:var(--s4); }
+    .row, .axis { grid-template-columns:1fr; gap:.15rem; }
+    .bandlabel { display:none; }
+    .rname { text-align:left; }
+    /* Stacked layout: anchor the value to the track's right edge rather than
+       trailing the bar — a 0.6% bar is 3px wide and cannot host a label. */
+    .track { margin-top:1.1rem; }
+    .val { left:auto; right:0; top:-.95rem; transform:none; }
+    .bar { min-width:3px; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+
+<div class="wrap">
+
+  <!-- ================= HERO ================= -->
+  <header class="hero">
+    <div class="eyebrow">
+      <span class="label">Measurement report</span>
+      <span class="label" style="color:var(--warn)">Negative result</span>
+      <span class="label">July 2026</span>
+    </div>
+    <h1>AI agents don't flood your<br>warehouse with duplicate queries</h1>
+    <p class="dek">The prediction was that agents fire thousands of near-identical speculative queries &#8212; only 10&#8211;20% of their sub-plans distinct &#8212; leaving a large deduplication prize. I built the tracing needed to measure that, then ran six conditions designed to give the claim its best shot. Only the one I <em>simulated from the paper</em> behaved that way.</p>
+  </header>
+
+  <!-- ================= THE CHART ================= -->
+  <figure>
+    <figcaption>
+      <span class="fig-title">Query redundancy by condition</span>
+      <span class="fig-sub">Share of servable queries a shared rollup could have eliminated. Schema lookups, joins and CTEs are excluded rather than counted as deduplicated.</span>
+    </figcaption>
+
+    <div class="chart" role="img" aria-label="Bar chart of query redundancy across six conditions. Simulated naive agent 89.9 percent, the only condition inside the 80 percent threshold the thesis requires. Real agent Opus 5 and wide schema both 42.9 percent, eight concurrent sessions 20.0 percent, coordinator with subagents 9.1 percent, real agent Haiku 4.5 zero percent.">
+
+      <div class="row" title="Simulated from the published description &#8212; 89 servable queries, 9 anchors">
+        <div class="rname">Simulated naive agent<br><span class="n">n=89 servable</span></div>
+        <div class="track"><div class="band"></div><div class="bar pred" style="width:89.9%"><span class="val">89.9%</span></div></div>
+      </div>
+
+      <div class="row" title="Real agent, narrow schema &#8212; 7 servable queries, 4 anchors">
+        <div class="rname">Real agent &#183; Opus 5<br><span class="n">n=7 servable</span></div>
+        <div class="track"><div class="band"></div><div class="bar" style="width:42.9%"><span class="val">42.9%</span></div></div>
+      </div>
+
+      <div class="row" title="120 decoy tables, schema withheld &#8212; 7 servable queries, 4 anchors">
+        <div class="rname">Wide schema &#183; 120 tables<br><span class="n">n=7 servable</span></div>
+        <div class="track"><div class="band"></div><div class="bar" style="width:42.9%"><span class="val">42.9%</span></div></div>
+      </div>
+
+      <div class="row" title="Eight concurrent agents, overlapping questions &#8212; 25 servable queries, 20 anchors">
+        <div class="rname">8 concurrent sessions<br><span class="n">n=25 servable</span></div>
+        <div class="track"><div class="band"></div><div class="bar" style="width:20%"><span class="val">20.0%</span></div></div>
+      </div>
+
+      <div class="row" title="Coordinator delegating to parallel subagents &#8212; 11 servable queries, 10 anchors">
+        <div class="rname">Coordinator + subagents<br><span class="n">n=11 servable</span></div>
+        <div class="track"><div class="band"></div><div class="bar" style="width:9.1%"><span class="val">9.1%</span></div></div>
+      </div>
+
+      <div class="row" title="Real agent, small model &#8212; 3 servable queries, 3 anchors">
+        <div class="rname">Real agent &#183; Haiku 4.5<br><span class="n">n=3 servable</span></div>
+        <div class="track"><div class="band"></div><div class="bar" style="width:0.6%"><span class="val">0.0%</span></div></div>
+      </div>
+
+      <div class="axis">
+        <div></div>
+        <div class="ticks">
+          <span class="tick" style="left:0">0%</span>
+          <span class="tick" style="left:25%">25%</span>
+          <span class="tick" style="left:50%">50%</span>
+          <span class="tick" style="left:75%">75%</span>
+          <span class="bandlabel">what the thesis requires &#8594;</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="key"><i style="background:var(--predicted)"></i>predicted (simulated from the paper)</span>
+      <span class="key"><i style="background:var(--observed)"></i>observed (real agents)</span>
+      <span class="key"><i style="background:var(--band);border:1px dashed var(--warn)"></i>&#8805;80% &#8212; the prize the thesis assumes</span>
+    </div>
+
+    <details class="tableview">
+      <summary>View as table</summary>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Condition</th><th class="num">Queries</th><th class="num">Servable</th><th class="num">Anchors</th><th class="num">Redundancy</th><th class="num">Grounded</th></tr></thead>
+          <tbody>
+            <tr><td>Simulated naive agent</td><td class="num">93</td><td class="num">89</td><td class="num">9</td><td class="num">89.9%</td><td class="num">4 / 93</td></tr>
+            <tr><td>Real agent &#183; Opus 5</td><td class="num">6</td><td class="num">7</td><td class="num">4</td><td class="num">42.9%</td><td class="num">6 / 6</td></tr>
+            <tr><td>Wide schema &#183; 120 tables</td><td class="num">17</td><td class="num">7</td><td class="num">4</td><td class="num">42.9%</td><td class="num">16 / 17</td></tr>
+            <tr><td>8 concurrent sessions</td><td class="num">41</td><td class="num">25</td><td class="num">20</td><td class="num">20.0%</td><td class="num">34 / 41</td></tr>
+            <tr><td>Coordinator + subagents</td><td class="num">25</td><td class="num">11</td><td class="num">10</td><td class="num">9.1%</td><td class="num">25 / 25</td></tr>
+            <tr><td>Real agent &#183; Haiku 4.5</td><td class="num">5</td><td class="num">3</td><td class="num">3</td><td class="num">0.0%</td><td class="num">4 / 5</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </figure>
+
+  <section>
+    <div class="col stack-sm">
+      <p><strong>The two conditions closest to the thesis's own premise produced the least redundancy of anything tested.</strong> A coordinator delegating to parallel subagents &#8212; independent investigators with no shared context, the exact shape the argument describes &#8212; came in at 9.1%, the lowest in the set, with every one of its 25 results used in the final answer. Delegation bought <em>more distinct work</em>, not duplicated work.</p>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ================= CLAIMS ================= -->
+  <section>
+    <h2>Six versions of the claim</h2>
+    <div class="col">
+      <ul>
+        <li><strong>Agents waste most queries on speculation.</strong> Real agents used <strong>34 of 41</strong> results across eight sessions &#8212; verified against the answer text, not self-reported.</li>
+        <li><strong>Cross-session sharing is where redundancy lives.</strong> Eight agents on deliberately overlapping questions: <strong>13%</strong>. Three of 23 per-session rollups eliminated.</li>
+        <li><strong>Weak models fan out</strong> &#8212; and "intelligence is free" implies small models at scale. Haiku 4.5 issued <strong>5 queries to Opus's 6</strong>.</li>
+        <li><strong>You're paying a warehouse to watch an LLM think.</strong> True at 96.7% for a lone agent &#8212; but <strong>23.7%</strong> once eight agents share one warehouse. Their think-time gaps interleave.</li>
+        <li><strong>A coordinator will duplicate its subagents' work.</strong> 9.1%, the lowest measured.</li>
+        <li><strong>A wide schema makes agents flail.</strong> Query count nearly tripled (6&#8594;17) &#8212; but the extra traffic was <code>information_schema</code> discovery, which no rollup can serve. Redundancy among servable queries was unchanged.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= WHAT SURVIVED ================= -->
+  <section>
+    <h2>What survived: the measurement itself</h2>
+    <div class="col">
+      <p>Trace context rides into the warehouse as a SQL comment. The warehouse logs it verbatim, and the agent's whole plan tree is reconstructed offline &#8212; nothing sits in the data path, nothing to trust, no latency added.</p>
+    </div>
+    <div class="logline"><span class="ts">LOG:  statement:</span> <span class="tag">/*agenttrace:t=673e90a1&#8230;,s=a17f2b,p=6c9e04,a=analyst,c=refine,i=revenue%20by%20region*/</span>
+  SELECT date_trunc('month', order_date), region, sum(amount) FROM orders GROUP BY 1, 2</div>
+    <div class="col">
+      <p>That yields per-agent query lineage, <strong>cost per resolved task</strong>, and &#8212; the part that mattered most here &#8212; verified answer-grounding. Whether a query's result reached the answer is the field the entire waste analysis rests on, and asking the agent is the agent grading its own homework. So values from each result set are matched against the answer text with numeric tolerance for the rounding models do in prose. It caught errors both ways: one agent claimed three queries and had used four; another claimed six and had used six.</p>
+    </div>
+    <div class="callout col">
+      <p>This is an <strong>observability tool, not an optimization platform</strong>. The optimizer in the repo is measured, small, and deliberately not built out further.</p>
+    </div>
+  </section>
+
+  <!-- ================= BUGS ================= -->
+  <section>
+    <h2>Six bugs, four of them flattering</h2>
+    <div class="col">
+      <p>Each moved a headline number. Four moved it toward the result I wanted, which is the part worth knowing before you trust any of the above.</p>
+    </div>
+    <div class="bugs">
+      <div class="bug">
+        <span class="bt">Named the subagent tool <code>Task</code> instead of <code>Agent</code></span>
+        <span class="bd">The coordinator condition ran with delegation silently disabled. An unknown tool name doesn't error &#8212; the model just never delegates, and the trace looks like a perfectly valid single-agent run.</span>
+        <span class="bx">an entire experimental condition was invalid and had to be rerun</span>
+      </div>
+      <div class="bug">
+        <span class="bt">Regex-"parsed" SQL</span>
+        <span class="bd">The extractor couldn't read <code>GROUP BY 1, 2</code>, <code>date_trunc()</code>, casts or aliases &#8212; exactly what real agents write &#8212; and emitted dimensions literally named <code>"1"</code> and <code>"2"</code>.</span>
+        <span class="bx">every redundancy number on real SQL was noise until it was replaced</span>
+      </div>
+      <div class="bug">
+        <span class="bt">Divided by the wrong denominator</span>
+        <span class="bd">Counted queries the parser <em>couldn't model</em> as successfully deduplicated.</span>
+        <span class="bx">reported 51% dedup &#8594; against servable queries, 20%</span>
+      </div>
+      <div class="bug">
+        <span class="bt">Applied a simulator's 100&#215; time dilation to a real trace</span>
+        <span class="bd">Scaling meant for compressed think-time was applied to timestamps that were already real.</span>
+        <span class="bx">reported a 2708s task with 7 warehouse resumes &#8594; actually 27s and 1</span>
+      </div>
+      <div class="bug">
+        <span class="bt">Substring-matched numeric values</span>
+        <span class="bd">Postgres returns <code>numeric</code> as a string, so results were compared as text against prose. <code>"69.33124&#8230;"</code> never appears in an answer that says <code>$69.33</code>.</span>
+        <span class="bx">grounding under-reported as 3/6 &#8594; actually 6/6</span>
+      </div>
+      <div class="bug">
+        <span class="bt">Line-anchored the citation regex</span>
+        <span class="bd">Models write <code>**CITED: q1, q4**</code>; a <code>/^CITED:/</code> scored that run as citing nothing.</span>
+        <span class="bx">one model scored 0 claimed against 4 grounded</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= LIMITS ================= -->
+  <section>
+    <h2>What this isn't</h2>
+    <div class="col">
+      <ul>
+        <li><strong>Not a study.</strong> One dataset, two models, six conditions, one run each. A cheap screen, run before building &#8212; which is the point.</li>
+        <li><strong>Every dataset had a single planted cause.</strong> Genuinely ambiguous, multi-cause questions are untested and are the most promising remaining condition.</li>
+        <li><strong>Coverage figures are lower bounds.</strong> The parser declines queries it can't model &#8212; joins, CTEs, <code>OR</code>, <code>HAVING</code> &#8212; rather than guessing at them. Excluding lowers reported coverage; mis-parsing would inflate it.</li>
+        <li><strong>Costs model Snowflake, run on Postgres.</strong> Snowflake XS billing applied to real Postgres execution times. The ratios are the finding, not the dollars.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= CTA ================= -->
+  <section>
+    <h2>Run it yourself</h2>
+    <div class="col">
+      <p>Every condition is a flag. The negative result cost about six dollars of inference to produce; reviving the thesis would cost about the same.</p>
+    </div>
+    <div class="logline">npm install &amp;&amp; npm test
+node src/real-agent.mjs "Why did revenue drop in July 2026?"
+node src/real-agent.mjs "..." --subagents        <span class="ts"># delegating coordinator</span>
+node src/real-agent.mjs "..." --wide             <span class="ts"># 120-table schema, hidden</span>
+node src/cross-session.mjs --concurrency 4       <span class="ts"># 8 agents at once</span></div>
+    <div class="cta">
+      <a class="primary" href="https://github.com/gpatwa/agent-data-observability">Source &amp; raw run logs &#8594;</a>
+      <a href="https://bair.berkeley.edu/blog/2026/07/07/intelligence-is-free-now-what/">The original claim (BAIR)</a>
+      <a href="https://arxiv.org/pdf/2509.00997">EPIC Lab &#8212; agent-first data systems</a>
+    </div>
+  </section>
+
+  <hr class="rule">
+  <p class="foot col">Postgres 18 with <code>log_statement=all</code>, 4.39M rows across 2 tables (122 in the wide condition). Real agents are Claude Opus 5 and Haiku 4.5 driven headlessly through Claude Code, with the warehouse exposed as a single <code>run_sql</code> MCP tool; query lineage is self-declared by the model. Query shapes parsed to AST; unmodellable queries excluded rather than guessed. 31 unit tests, weighted toward negative subsumption cases. Chart palette validated for colour-vision deficiency in both light and dark modes.</p>
+
+</div>
