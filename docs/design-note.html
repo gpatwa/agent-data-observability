@@ -1,0 +1,374 @@
+<title>Agent→Data Observability — Design &amp; Prototype Results</title>
+<style>
+  :root {
+    --ground:#F2F5F5; --surface:#FFFFFF; --surface-2:#E7EDED; --sunken:#1A2426;
+    --ink:#12191B; --ink-2:#2C3639; --muted:#5F6E71; --rule:#D2DBDB;
+    --measure:#0B6B72; --measure-soft:#0B6B7218;
+    --tax:#AE5622; --tax-soft:#AE562218;
+    --sunken-ink:#D6E3E4; --sunken-muted:#7E9295; --sunken-rule:#2B3A3D;
+
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --serif: ui-serif, Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+
+    --s1:.4rem; --s2:.75rem; --s3:1.25rem; --s4:2rem; --s5:3.25rem; --s6:5rem;
+    --col: 68ch;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:#0E1315; --surface:#151D1F; --surface-2:#1D2729; --sunken:#080C0D;
+      --ink:#E6EDEE; --ink-2:#C4D1D2; --muted:#889A9D; --rule:#263336;
+      --measure:#3FB3B8; --measure-soft:#3FB3B822;
+      --tax:#E0904F; --tax-soft:#E0904F22;
+      --sunken-ink:#D6E3E4; --sunken-muted:#7E9295; --sunken-rule:#1B2527;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0E1315; --surface:#151D1F; --surface-2:#1D2729; --sunken:#080C0D;
+    --ink:#E6EDEE; --ink-2:#C4D1D2; --muted:#889A9D; --rule:#263336;
+    --measure:#3FB3B8; --measure-soft:#3FB3B822;
+    --tax:#E0904F; --tax-soft:#E0904F22;
+    --sunken-ink:#D6E3E4; --sunken-muted:#7E9295; --sunken-rule:#1B2527;
+  }
+  :root[data-theme="light"] {
+    --ground:#F2F5F5; --surface:#FFFFFF; --surface-2:#E7EDED; --sunken:#1A2426;
+    --ink:#12191B; --ink-2:#2C3639; --muted:#5F6E71; --rule:#D2DBDB;
+    --measure:#0B6B72; --measure-soft:#0B6B7218;
+    --tax:#AE5622; --tax-soft:#AE562218;
+    --sunken-ink:#D6E3E4; --sunken-muted:#7E9295; --sunken-rule:#2B3A3D;
+  }
+
+  body {
+    background:var(--ground); color:var(--ink);
+    font-family:var(--serif); font-size:17px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1080px; margin:0 auto; padding:var(--s5) var(--s3) var(--s6); }
+  .col { max-width:var(--col); }
+
+  h1,h2,h3,.label,.mono { font-family:var(--mono); }
+  h1 { font-size:clamp(1.7rem,4.2vw,2.6rem); line-height:1.15; letter-spacing:-.03em; font-weight:600; text-wrap:balance; margin:0; }
+  h2 { font-size:1.15rem; letter-spacing:-.015em; font-weight:600; text-wrap:balance; margin:0; }
+  h3 { font-size:.9rem; letter-spacing:.01em; font-weight:600; margin:0; color:var(--ink-2); }
+  p { margin:0; }
+  .col p + p { margin-top:var(--s2); }
+  strong { font-weight:600; }
+  code { font-family:var(--mono); font-size:.86em; background:var(--surface-2); padding:.1em .35em; border-radius:3px; }
+  a { color:var(--measure); }
+
+  .label {
+    font-size:.68rem; text-transform:uppercase; letter-spacing:.14em;
+    color:var(--muted); font-weight:600;
+  }
+
+  section { display:flex; flex-direction:column; gap:var(--s3); }
+  .stack { display:flex; flex-direction:column; gap:var(--s5); }
+  .stack-sm { display:flex; flex-direction:column; gap:var(--s3); }
+  .stack-xs { display:flex; flex-direction:column; gap:var(--s1); }
+
+  /* ---- masthead ---- */
+  .mast { display:flex; flex-direction:column; gap:var(--s3); padding-bottom:var(--s4); border-bottom:2px solid var(--ink); }
+  .kicker { display:flex; flex-wrap:wrap; gap:var(--s2) var(--s3); align-items:baseline; }
+  .dek { font-size:1.15rem; color:var(--ink-2); max-width:60ch; text-wrap:pretty; }
+
+  /* ---- the hero transform ---- */
+  .transform { background:var(--sunken); border-radius:8px; padding:var(--s3); display:flex; flex-direction:column; gap:var(--s2); overflow-x:auto; }
+  .transform .label { color:var(--sunken-muted); }
+  .logline { font-family:var(--mono); font-size:.76rem; line-height:1.7; color:var(--sunken-ink); white-space:pre; }
+  .logline .ts { color:var(--sunken-muted); }
+  .logline .tag { color:var(--measure); }
+  .logline .sql { color:var(--sunken-ink); }
+  .tdivide { border-top:1px dashed var(--sunken-rule); margin:var(--s1) 0; }
+  .fields { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:var(--s2) var(--s3); }
+  .field { display:flex; flex-direction:column; gap:2px; font-family:var(--mono); font-size:.75rem; }
+  .field .k { color:var(--sunken-muted); font-size:.66rem; text-transform:uppercase; letter-spacing:.1em; }
+  .field .v { color:var(--sunken-ink); }
+  .field .v.hi { color:var(--measure); }
+
+  /* ---- meter ---- */
+  .meter { display:flex; height:34px; border-radius:5px; overflow:hidden; border:1px solid var(--rule); }
+  .meter span { display:block; }
+  .meter .used { background:var(--measure); width:.62%; min-width:3px; }
+  .meter .idle { background:var(--tax-soft); border-left:1px solid var(--tax); flex:1; }
+  .meter-key { display:flex; flex-wrap:wrap; gap:var(--s3); font-family:var(--mono); font-size:.74rem; }
+  .swatch { display:inline-flex; align-items:center; gap:.45rem; }
+  .swatch i { width:11px; height:11px; border-radius:2px; display:inline-block; }
+
+  /* ---- stat row ---- */
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:6px; overflow:hidden; }
+  .stat { background:var(--surface); padding:var(--s3); display:flex; flex-direction:column; gap:.3rem; }
+  .stat .n { font-family:var(--mono); font-size:1.75rem; font-weight:600; letter-spacing:-.03em; font-variant-numeric:tabular-nums; line-height:1; }
+  .stat .n.m { color:var(--measure); }
+  .stat .n.t { color:var(--tax); }
+  .stat .c { font-size:.82rem; color:var(--muted); font-family:var(--serif); line-height:1.4; }
+
+  /* ---- panels ---- */
+  .panel { background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:var(--s3); display:flex; flex-direction:column; gap:var(--s2); }
+  .panel-wide { overflow-x:auto; }
+  pre.tree { font-family:var(--mono); font-size:.73rem; line-height:1.75; margin:0; white-space:pre; color:var(--ink-2); }
+  pre.tree .cited { color:var(--measure); font-weight:600; }
+  pre.tree .roll { color:var(--tax); }
+  pre.tree .cost { color:var(--muted); }
+
+  /* ---- tables ---- */
+  .tw { overflow-x:auto; border:1px solid var(--rule); border-radius:6px; background:var(--surface); }
+  table { border-collapse:collapse; width:100%; font-size:.86rem; }
+  th, td { text-align:left; padding:.6rem var(--s2); border-bottom:1px solid var(--rule); vertical-align:top; }
+  th { font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); font-weight:600; white-space:nowrap; }
+  tbody tr:last-child td { border-bottom:0; }
+  td.num { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.mono { font-family:var(--mono); font-size:.78rem; }
+
+  /* ---- phase ladder (a real sequence, so it gets numbers) ---- */
+  .ladder { display:flex; flex-direction:column; }
+  .rung { display:grid; grid-template-columns:2.6rem 1fr; gap:var(--s3); padding:var(--s3) 0; border-top:1px solid var(--rule); }
+  .rung:first-child { border-top:0; }
+  .rung .n { font-family:var(--mono); font-size:1.3rem; font-weight:600; color:var(--measure); font-variant-numeric:tabular-nums; line-height:1.2; }
+  .rung.future .n { color:var(--muted); }
+  .rung .body { display:flex; flex-direction:column; gap:.3rem; }
+  .rung .t { font-family:var(--mono); font-weight:600; font-size:.92rem; display:flex; flex-wrap:wrap; gap:var(--s2); align-items:baseline; }
+  .pill { font-family:var(--mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; padding:.15rem .45rem; border-radius:3px; border:1px solid currentColor; font-weight:600; }
+  .pill.built { color:var(--measure); }
+  .pill.next { color:var(--tax); }
+  .pill.later { color:var(--muted); }
+  .rung .d { color:var(--ink-2); font-size:.95rem; }
+
+  ul { margin:0; padding-left:1.1rem; display:flex; flex-direction:column; gap:var(--s1); }
+  li::marker { color:var(--muted); }
+
+  .callout { border-left:3px solid var(--tax); background:var(--tax-soft); padding:var(--s2) var(--s3); border-radius:0 5px 5px 0; }
+  .rule { border:0; border-top:1px solid var(--rule); margin:0; }
+  .foot { color:var(--muted); font-size:.85rem; }
+
+  @media (max-width:640px) {
+    body { font-size:16px; }
+    .wrap { padding:var(--s4) var(--s2) var(--s5); }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+
+<div class="wrap stack">
+
+  <header class="mast">
+    <div class="kicker">
+      <span class="label">Design note</span>
+      <span class="label" style="color:var(--measure)">Prototype validated</span>
+      <span class="label">2026-07-28</span>
+    </div>
+    <h1>Agent→data observability, and the cost layer<br>that can only exist on top of it</h1>
+    <p class="dek">Warehouse query logs can tell you what ran. They cannot tell you <em>which reasoning step</em> ran it — so &ldquo;redundant&rdquo; stays undefinable and every cost tool is guessing. This is the trace primitive that fixes that, plus measured results from a working prototype.</p>
+  </header>
+
+  <!-- ============ THESIS ============ -->
+  <section>
+    <h2>The dependency nobody has built through</h2>
+    <div class="col stack-sm">
+      <p>Two identical queries from two different user tasks are legitimately two queries. Two identical queries inside one agent's speculation loop are one query plus wasted spend. <strong>Same SQL, opposite verdicts.</strong> Nothing in a warehouse's query history distinguishes them.</p>
+      <p>So the chain runs in one direction only, and every link needs the one before it:</p>
+    </div>
+    <div class="panel panel-wide">
+      <pre class="tree"><span class="cited">identity</span> → <span class="cited">plan lineage</span> → <span class="cited">redundancy classification</span> → <span class="roll">dedup / approximation</span> → <span class="roll">savings</span></pre>
+    </div>
+    <div class="col">
+      <p>Existing warehouse-cost tools start at step four. That is why they optimize <em>warehouses</em> — sizing, auto-suspend, routing — rather than <em>queries</em>: steps one through three aren't recoverable from query history alone. Observability here isn't a go-to-market wedge that happens to come first. It's the technical precondition.</p>
+    </div>
+  </section>
+
+  <!-- ============ MECHANISM ============ -->
+  <section>
+    <h2>The mechanism: stay out of the data path</h2>
+    <div class="col">
+      <p>Adoption dies at &ldquo;install a proxy in front of your warehouse.&rdquo; So v1 adds nothing to the data path but a comment. Trace context is injected <a href="https://google.github.io/sqlcommenter/">sqlcommenter</a>-style; the warehouse logs it verbatim; the plan tree is reconstructed offline from a file the warehouse already writes.</p>
+    </div>
+
+    <div class="transform">
+      <span class="label">What Postgres wrote to its own log</span>
+      <div class="logline"><span class="ts">2026-07-28 23:41:07.882 PDT [16233] LOG:  statement:</span> <span class="tag">/*agenttrace:t=0ae579c0…,s=a17f2b,p=6c9e04,a=revenue-analyst-v3,c=probe,i=daily%20volume%202026-07-12*/</span>
+    <span class="sql">select count(order_id), sum(amount) from orders where order_date = '2026-07-12'</span></div>
+      <div class="tdivide"></div>
+      <span class="label">What the assembler recovers</span>
+      <div class="fields">
+        <div class="field"><span class="k">trace_id</span><span class="v">0ae579c08bfa2e45</span></div>
+        <div class="field"><span class="k">span / parent</span><span class="v">a17f2b ← 6c9e04</span></div>
+        <div class="field"><span class="k">agent</span><span class="v">revenue-analyst-v3</span></div>
+        <div class="field"><span class="k">speculation class</span><span class="v">probe</span></div>
+        <div class="field"><span class="k">ast_hash</span><span class="v">4e11c7a90b32</span></div>
+        <div class="field"><span class="k">subsumed by</span><span class="v hi">anchor #1 (synthesized)</span></div>
+        <div class="field"><span class="k">billed</span><span class="v">4.6 warehouse-sec</span></div>
+        <div class="field"><span class="k">used_downstream</span><span class="v hi">false</span></div>
+      </div>
+    </div>
+
+    <div class="col stack-sm">
+      <p>Values are URL-encoded, so quotes, spaces and <code>*/</code> in intent text cannot break out of the comment. Zero added latency, zero interception, nothing to trust — and the same middleware seam is where phase 2 flips to in-path mode behind a config flag. The adoption story and the upgrade story reuse one component.</p>
+      <p><code>used_downstream</code> is the exception: it can't come from the database at all. It needs the agent to record which results actually informed its final answer. That two-sided join is what turns &ldquo;you ran 93 queries&rdquo; into a number a budget owner reacts to.</p>
+    </div>
+  </section>
+
+  <!-- ============ RESULTS ============ -->
+  <section>
+    <h2>Prototype results</h2>
+    <div class="col">
+      <p>A simulated analyst agent answered &ldquo;why did revenue drop in July 2026?&rdquo; against 4.39M rows in Postgres, with statement logging on. The plan tree below was reconstructed <em>only</em> from the log file, then joined to the agent's own event stream and priced under Snowflake XS billing rules.</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="n">93</span><span class="c">queries issued for one question</span></div>
+      <div class="stat"><span class="n m">9.7%</span><span class="c">distinct sub-plans after subsumption</span></div>
+      <div class="stat"><span class="n t">99.4%</span><span class="c">of the bill was idle warehouse time</span></div>
+      <div class="stat"><span class="n t">4 / 93</span><span class="c">results that reached the answer</span></div>
+    </div>
+
+    <div class="col">
+      <p>The 9.7% lands inside the 10–20% distinct-sub-plan range the BAIR post reports — arrived at independently, from a different workload, by a different method.</p>
+    </div>
+
+    <h3>Reconstructed plan tree</h3>
+    <div class="panel panel-wide">
+      <pre class="tree">   [probe ] discover schema orders                  $0.002
+   [probe ] peek rows orders                        $0.000
+<span class="cited">✓</span>  [refine] confirm monthly drop                    $0.014
+<span class="cited">✓</span>  [refine] confirm monthly drop (july)             $0.012
+   [refine] hypothesis: order volume fell           $0.010
+       └─ <span class="roll">31×</span> daily volume &lt;date&gt;                <span class="roll">$0.076</span>
+   [refine] hypothesis: AOV fell                    $0.014
+       └─  3× avg order value july  <span class="cost">(cosmetic retries)</span>  $0.037
+   [refine] hypothesis: mix shift                   $0.018
+       └─ <span class="roll">12×</span> cell &lt;region&gt;/&lt;channel&gt;             <span class="roll">$0.081</span>
+<span class="cited">✓</span>  [refine] rollup region x channel                 $0.022
+   [probe ] hypothesis: refunds spiked  <span class="cost">(dead end)</span>   $0.001
+   [refine] isolate EMEA paid_search                $0.009
+       └─ <span class="roll">31×</span> emea &lt;channel&gt; &lt;date&gt;               <span class="roll">$0.059</span>
+<span class="cited">✓</span>  [final ] final confirming query                  $0.007</pre>
+      <div class="meter-key">
+        <span class="swatch"><i style="background:var(--measure)"></i>result reached the answer</span>
+        <span class="swatch"><i style="background:var(--tax)"></i>probe fan-out a rollup would subsume</span>
+      </div>
+    </div>
+
+    <h3>Where the money went</h3>
+    <div class="panel">
+      <div class="meter"><span class="used"></span><span class="idle"></span></div>
+      <div class="meter-key">
+        <span class="swatch"><i style="background:var(--measure)"></i>productive query execution — 2.7s</span>
+        <span class="swatch"><i style="background:var(--tax)"></i>idle + cold-start tax — 430s</span>
+      </div>
+    </div>
+    <div class="col">
+      <p>This is the finding I did not expect to be so lopsided, and it survived scrutiny: the agent's think-time between probes is only ever a few seconds, so a 60-second auto-suspend <em>never fires</em>. The warehouse stays hot for the entire 372-second task while doing 2.7 seconds of work. <strong>You are paying a warehouse to watch an LLM think.</strong></p>
+    </div>
+
+    <h3>The anchors are queries nobody ran</h3>
+    <div class="col">
+      <p>My first covering-set pass returned 68 anchors for 89 aggregate queries — useless. The bug was conceptual, not mechanical: it picked anchors from <em>observed</em> queries. But an agent that fires 31 per-day probes never issues the <code>GROUP BY order_date</code> rollup that would have answered all 31. Candidates have to be <strong>synthesized</strong> by lifting equality filters up into the grouping. After that, 9 anchors cover 85 of 89.</p>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Anchor</th><th>Origin</th><th class="num">Covers</th><th class="num">Measured</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">select channel, order_date, region, count(*), sum(amount) from orders group by …</td>
+            <td><span class="pill built">synthesized</span></td>
+            <td class="num">62</td><td class="num">732 rows · 318ms</td>
+          </tr>
+          <tr>
+            <td class="mono">select channel, region, sum(amount) from orders where order_date between … group by …</td>
+            <td><span class="pill later">observed</span></td>
+            <td class="num">16</td><td class="num">12 rows · 174ms</td>
+          </tr>
+          <tr>
+            <td class="mono">select count(*), count(refund_id), sum(amount) from refunds</td>
+            <td><span class="pill built">synthesized</span></td>
+            <td class="num">1</td><td class="num">1 row · 1ms</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="col">
+      <p>The anchors were <em>executed</em>, not estimated: 764ms of anchor time against 2,712ms of probe execution — <strong>71.8% less compute for the same answers</strong>. Three <code>avg()</code> retries are served from the anchor's <code>sum</code> + <code>count</code> rather than rescanning.</p>
+    </div>
+  </section>
+
+  <!-- ============ FINGERPRINTS ============ -->
+  <section>
+    <h2>Why exact-match caching is worthless here</h2>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Tier</th><th>Catches</th><th class="num">Hit rate, this workload</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">exact</td><td>literal retries</td><td class="num">1.1%</td></tr>
+          <tr><td class="mono">ast_hash</td><td>alias renames, predicate reordering, whitespace</td><td class="num">2.2%</td></tr>
+          <tr><td class="mono">subsumption</td><td>probes answerable from a coarser result</td><td class="num" style="color:var(--measure);font-weight:600">90.3%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="col">
+      <p>Agents rarely repeat a query exactly. They <em>probe around a region</em> — one cell, then the neighbouring cell, then the same cut sliced by day. Semantic caching as shipped by today's LLM gateways operates on prompts and would catch essentially none of this. The prize is in view-matching and multi-query optimization: four decades of database literature that nobody has pointed at agent traffic.</p>
+    </div>
+    <div class="callout col">
+      <p><strong>Prototype honesty:</strong> tiers 2 and 3 use a tokenizer and a structured extractor for the common aggregate shape, not a real SQL parser. That's the right shortcut for sizing a prize; a product needs sqlglot or Calcite behind the same interface, and the hit rate will move.</p>
+    </div>
+  </section>
+
+  <!-- ============ LADDER ============ -->
+  <section>
+    <h2>Trust ladder</h2>
+    <div class="col">
+      <p>Each rung is earned with evidence produced by the rung below it. You never ask for write access before showing a number that hurts.</p>
+    </div>
+    <div class="ladder">
+      <div class="rung">
+        <span class="n">1</span>
+        <div class="body">
+          <div class="t">Observe <span class="pill built">prototyped</span></div>
+          <p class="d">Comment injection, log reconstruction, fingerprinting, cost attribution. Read-only, out of path.</p>
+        </div>
+      </div>
+      <div class="rung">
+        <span class="n">2</span>
+        <div class="body">
+          <div class="t">Advise <span class="pill next">next</span></div>
+          <p class="d">Batch the probes into one warehouse window: <strong>$0.360 → $0.052</strong> per task, 6.9×, with no query rewriting at all. Plus sizing and rollup recommendations.</p>
+        </div>
+      </div>
+      <div class="rung future">
+        <span class="n">3</span>
+        <div class="body">
+          <div class="t">Materialize <span class="pill later">later</span></div>
+          <p class="d">Auto-create the synthesized anchors and route the semantic layer at them.</p>
+        </div>
+      </div>
+      <div class="rung future">
+        <span class="n">4</span>
+        <div class="body">
+          <div class="t">Intercept <span class="pill later">later</span></div>
+          <p class="d">Middleware flips in-path: dedup, serve-from-anchor, approximate-first with exact-on-final.</p>
+        </div>
+      </div>
+      <div class="rung future">
+        <span class="n">5</span>
+        <div class="body">
+          <div class="t">Steer <span class="pill later">later</span></div>
+          <p class="d">Return guidance to the agent instead of data — &ldquo;that's a 2TB scan, here's the rollup.&rdquo; No commercial implementations exist today.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RISKS ============ -->
+  <section>
+    <h2>What could sink it</h2>
+    <div class="col">
+      <ul>
+        <li><strong>The measurement is the easy half.</strong> <code>used_downstream</code> needs per-framework agent hooks. It's the highest-value field and the most likely to slip.</li>
+        <li><strong>Subsumption checking must cost less than the query it saves.</strong> Cheap AST hashing inline, expensive cover computation offline — or it's a science project.</li>
+        <li><strong>You're building a high-volume telemetry system to reduce a data bill.</strong> Your own storage economics need to be good, or the irony becomes the sales objection.</li>
+        <li><strong>Snowflake ships native attribution and the wedge evaporates.</strong> They bought Natoma in May 2026 and shipped the Cortex AI Gateway this month; they are actively claiming this layer. Being cross-warehouse from day one is the only durable answer — the multi-engine shop can't use vendor-native tooling.</li>
+        <li><strong>Timing.</strong> Rungs 3–5 need agent workloads at real scale. If enterprise deployment stalls in pilots, the optimizer has nothing to optimize.</li>
+      </ul>
+    </div>
+  </section>
+
+  <hr class="rule">
+  <p class="foot col">Prototype: ~700 lines of Node against Postgres 18 with <code>log_statement=all</code>. Warehouse pricing modelled on Snowflake XS, $3/credit, 60s minimum billing, 60s auto-suspend. Agent think-time is compressed 100× in the simulation and scaled back before billing; query execution time is real and never scaled. Per-task dollar figures come from one XS warehouse and one trace — treat the ratios as the finding, not the absolute numbers.</p>
+
+</div>

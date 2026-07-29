@@ -1,0 +1,6 @@
+node_modules/
+.pgdata/
+out/*
+!out/.gitkeep
+*.log
+.DS_Store

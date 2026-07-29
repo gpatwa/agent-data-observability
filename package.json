@@ -1,0 +1,22 @@
+{
+  "name": "agent-data-observability",
+  "version": "0.1.0",
+  "description": "A trace primitive for agent→database traffic: reconstruct an agent's query plan tree from warehouse logs, then measure redundancy and cost.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "demo": "./scripts/demo.sh"
+  },
+  "keywords": [
+    "ai-agents",
+    "observability",
+    "query-optimization",
+    "data-warehouse",
+    "finops",
+    "opentelemetry",
+    "sqlcommenter"
+  ],
+  "dependencies": {
+    "pg": "^8.16.3"
+  }
+}
