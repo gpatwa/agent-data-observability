@@ -6,10 +6,8 @@
     --measure:#0B6B72; --measure-soft:#0B6B7218;
     --tax:#AE5622; --tax-soft:#AE562218;
     --sunken-ink:#D6E3E4; --sunken-muted:#7E9295; --sunken-rule:#2B3A3D;
-
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     --serif: ui-serif, Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
-
     --s1:.4rem; --s2:.75rem; --s3:1.25rem; --s4:2rem; --s5:3.25rem; --s6:5rem;
     --col: 68ch;
   }
@@ -37,14 +35,9 @@
     --sunken-ink:#D6E3E4; --sunken-muted:#7E9295; --sunken-rule:#2B3A3D;
   }
 
-  body {
-    background:var(--ground); color:var(--ink);
-    font-family:var(--serif); font-size:17px; line-height:1.65;
-    -webkit-font-smoothing:antialiased;
-  }
+  body { background:var(--ground); color:var(--ink); font-family:var(--serif); font-size:17px; line-height:1.65; -webkit-font-smoothing:antialiased; }
   .wrap { max-width:1080px; margin:0 auto; padding:var(--s5) var(--s3) var(--s6); }
   .col { max-width:var(--col); }
-
   h1,h2,h3,.label,.mono { font-family:var(--mono); }
   h1 { font-size:clamp(1.7rem,4.2vw,2.6rem); line-height:1.15; letter-spacing:-.03em; font-weight:600; text-wrap:balance; margin:0; }
   h2 { font-size:1.15rem; letter-spacing:-.015em; font-weight:600; text-wrap:balance; margin:0; }
@@ -52,53 +45,32 @@
   p { margin:0; }
   .col p + p { margin-top:var(--s2); }
   strong { font-weight:600; }
-  em { font-style:italic; }
   code { font-family:var(--mono); font-size:.86em; background:var(--surface-2); padding:.1em .35em; border-radius:3px; }
   a { color:var(--measure); }
-
-  .label {
-    font-size:.68rem; text-transform:uppercase; letter-spacing:.14em;
-    color:var(--muted); font-weight:600;
-  }
-
+  .label { font-size:.68rem; text-transform:uppercase; letter-spacing:.14em; color:var(--muted); font-weight:600; }
   section { display:flex; flex-direction:column; gap:var(--s3); }
   .stack { display:flex; flex-direction:column; gap:var(--s5); }
   .stack-sm { display:flex; flex-direction:column; gap:var(--s3); }
 
-  /* ---- masthead ---- */
   .mast { display:flex; flex-direction:column; gap:var(--s3); padding-bottom:var(--s4); border-bottom:2px solid var(--ink); }
   .kicker { display:flex; flex-wrap:wrap; gap:var(--s2) var(--s3); align-items:baseline; }
   .dek { font-size:1.15rem; color:var(--ink-2); max-width:62ch; text-wrap:pretty; }
 
-  /* ---- the hero transform ---- */
   .transform { background:var(--sunken); border-radius:8px; padding:var(--s3); display:flex; flex-direction:column; gap:var(--s2); overflow-x:auto; }
   .transform .label { color:var(--sunken-muted); }
   .logline { font-family:var(--mono); font-size:.76rem; line-height:1.7; color:var(--sunken-ink); white-space:pre; }
   .logline .ts { color:var(--sunken-muted); }
   .logline .tag { color:var(--measure); }
-  .tdivide { border-top:1px dashed var(--sunken-rule); margin:var(--s1) 0; }
-  .fields { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:var(--s2) var(--s3); }
-  .field { display:flex; flex-direction:column; gap:2px; font-family:var(--mono); font-size:.75rem; }
-  .field .k { color:var(--sunken-muted); font-size:.66rem; text-transform:uppercase; letter-spacing:.1em; }
-  .field .v { color:var(--sunken-ink); }
-  .field .v.hi { color:var(--measure); }
 
-  /* ---- verdict cards ---- */
   .verdicts { display:flex; flex-direction:column; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:6px; overflow:hidden; }
-  .verdict { background:var(--surface); padding:var(--s3); display:grid; grid-template-columns:minmax(0,11rem) 1fr; gap:var(--s3); align-items:start; }
+  .verdict { background:var(--surface); padding:var(--s3); display:grid; grid-template-columns:minmax(0,12rem) 1fr; gap:var(--s3); align-items:start; }
   .verdict .vhead { display:flex; flex-direction:column; gap:.45rem; }
-  .verdict .vname { font-family:var(--mono); font-weight:600; font-size:.9rem; }
+  .verdict .vname { font-family:var(--mono); font-weight:600; font-size:.88rem; }
   .verdict .vbody { color:var(--ink-2); font-size:.97rem; }
-  .chip {
-    font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.1em;
-    font-weight:600; padding:.2rem .45rem; border-radius:3px; border:1px solid currentColor;
-    display:inline-block; width:fit-content;
-  }
+  .chip { font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; font-weight:600; padding:.2rem .45rem; border-radius:3px; border:1px solid currentColor; display:inline-block; width:fit-content; }
   .chip.held { color:var(--measure); }
   .chip.died { color:var(--tax); }
-  .chip.partial { color:var(--tax); }
 
-  /* ---- meter ---- */
   .meter { display:flex; height:30px; border-radius:5px; overflow:hidden; border:1px solid var(--rule); }
   .meter span { display:block; }
   .meter .used { background:var(--measure); min-width:3px; }
@@ -107,48 +79,32 @@
   .swatch { display:inline-flex; align-items:center; gap:.45rem; }
   .swatch i { width:11px; height:11px; border-radius:2px; display:inline-block; }
 
-  /* ---- panels ---- */
   .panel { background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:var(--s3); display:flex; flex-direction:column; gap:var(--s2); }
-  .panel-wide { overflow-x:auto; }
   .duo { display:grid; grid-template-columns:1fr 1fr; gap:var(--s3); }
   @media (max-width:760px) { .duo { grid-template-columns:1fr; } .verdict { grid-template-columns:1fr; gap:var(--s2); } }
-  pre.tree { font-family:var(--mono); font-size:.72rem; line-height:1.8; margin:0; white-space:pre; color:var(--ink-2); }
-  pre.tree .cited { color:var(--measure); font-weight:600; }
-  pre.tree .roll { color:var(--tax); }
-  pre.tree .cost { color:var(--muted); }
 
-  /* ---- tables ---- */
   .tw { overflow-x:auto; border:1px solid var(--rule); border-radius:6px; background:var(--surface); }
   table { border-collapse:collapse; width:100%; font-size:.88rem; }
   th, td { text-align:left; padding:.6rem var(--s2); border-bottom:1px solid var(--rule); vertical-align:top; }
   th { font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); font-weight:600; white-space:nowrap; }
   tbody tr:last-child td { border-bottom:0; }
   td.num { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
-  td.real { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:600; color:var(--measure); }
-  td.mono { font-family:var(--mono); font-size:.78rem; }
+  td.hi { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:600; color:var(--measure); }
 
-  /* ---- ladder (a real sequence, so it gets numbers) ---- */
-  .ladder { display:flex; flex-direction:column; }
-  .rung { display:grid; grid-template-columns:2.6rem 1fr; gap:var(--s3); padding:var(--s3) 0; border-top:1px solid var(--rule); }
-  .rung:first-child { border-top:0; }
-  .rung .n { font-family:var(--mono); font-size:1.3rem; font-weight:600; color:var(--measure); font-variant-numeric:tabular-nums; line-height:1.2; }
-  .rung.future .n { color:var(--muted); }
-  .rung .body { display:flex; flex-direction:column; gap:.3rem; }
-  .rung .t { font-family:var(--mono); font-weight:600; font-size:.92rem; display:flex; flex-wrap:wrap; gap:var(--s2); align-items:baseline; }
-  .rung .d { color:var(--ink-2); font-size:.95rem; }
+  .bugs { display:flex; flex-direction:column; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:6px; overflow:hidden; }
+  .bug { background:var(--surface); padding:var(--s3); display:flex; flex-direction:column; gap:.35rem; }
+  .bug .bt { font-family:var(--mono); font-size:.85rem; font-weight:600; }
+  .bug .bd { color:var(--ink-2); font-size:.95rem; }
+  .bug .bdelta { font-family:var(--mono); font-size:.76rem; color:var(--tax); }
 
   ul { margin:0; padding-left:1.1rem; display:flex; flex-direction:column; gap:var(--s1); }
   li::marker { color:var(--muted); }
-
   .callout { border-left:3px solid var(--tax); background:var(--tax-soft); padding:var(--s2) var(--s3); border-radius:0 5px 5px 0; }
   .callout.good { border-left-color:var(--measure); background:var(--measure-soft); }
   .rule { border:0; border-top:1px solid var(--rule); margin:0; }
   .foot { color:var(--muted); font-size:.85rem; }
 
-  @media (max-width:640px) {
-    body { font-size:16px; }
-    .wrap { padding:var(--s4) var(--s2) var(--s5); }
-  }
+  @media (max-width:640px) { body { font-size:16px; } .wrap { padding:var(--s4) var(--s2) var(--s5); } }
   @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
 </style>
 
@@ -157,270 +113,157 @@
   <header class="mast">
     <div class="kicker">
       <span class="label">Design note</span>
-      <span class="label" style="color:var(--tax)">Revised after real-agent run</span>
-      <span class="label">2026-07-28</span>
+      <span class="label" style="color:var(--tax)">Final — thesis not supported</span>
+      <span class="label">2026-07-29</span>
     </div>
-    <h1>Agent→data observability —<br>and the cost layer that mostly didn't survive contact</h1>
-    <p class="dek">The trace primitive works: an agent's query plan tree reconstructs cleanly from warehouse logs with nothing in the data path. The optimization thesis built on top of it was then tested against a <em>real</em> agent, and two of its three findings did not reproduce. This is the honest version.</p>
+    <h1>I built the agent-query optimization thesis,<br>measured it, and it isn't there</h1>
+    <p class="dek">Agents were supposed to flood warehouses with near-duplicate speculative queries — 10–20% distinct sub-plans, a large deduplication prize. I built the trace primitive to measure that, then measured it against real agents. Four versions of the claim, four failures. The tooling is real and useful; the prize is not.</p>
   </header>
 
-  <!-- ============ THE REVISION, UP FRONT ============ -->
+  <!-- ============ HEADLINE ============ -->
   <section>
-    <h2>Two agents, one question</h2>
-    <div class="col">
-      <p>The same question — <em>"why did revenue drop in July 2026?"</em> — against the same 4.39M rows, traced identically. One agent is a simulator whose speculation shape was modelled on the published descriptions of agentic query fan-out. The other is Claude Opus 5 driving a single <code>run_sql</code> tool.</p>
-    </div>
-
+    <h2>What the numbers actually are</h2>
     <div class="tw">
       <table>
-        <thead><tr><th>&nbsp;</th><th class="num">Simulated</th><th class="num">Real agent</th></tr></thead>
+        <thead><tr><th>&nbsp;</th><th class="num">Simulated naive</th><th class="num">Real (Opus 5)</th><th class="num">Real (Haiku 4.5)</th><th class="num">8 concurrent</th></tr></thead>
         <tbody>
-          <tr><td>Queries issued</td><td class="num">93</td><td class="real">7</td></tr>
-          <tr><td>Distinct sub-plans after subsumption</td><td class="num">9.7%</td><td class="real">57.1%</td></tr>
-          <tr><td>Results that reached the answer</td><td class="num">4 / 93</td><td class="real">7 / 7</td></tr>
-          <tr><td>Bill that was idle warehouse time</td><td class="num">~99%</td><td class="real">96.7%</td></tr>
-          <tr><td>Cost per resolved task</td><td class="num">$0.36–0.46</td><td class="real">$0.073</td></tr>
-          <tr><td>Saving from batching advice alone</td><td class="num">7–9×</td><td class="real">1.4×</td></tr>
+          <tr><td>Queries for one question</td><td class="num">93</td><td class="hi">6</td><td class="hi">5</td><td class="num">41 total</td></tr>
+          <tr><td>Distinct sub-plans</td><td class="num">9.7%</td><td class="hi">57%</td><td class="hi">60%</td><td class="num">—</td></tr>
+          <tr><td>Results reaching the answer</td><td class="num">4 / 93</td><td class="hi">6 / 6</td><td class="num">4 / 5</td><td class="hi">34 / 41</td></tr>
+          <tr><td>Idle share of the bill</td><td class="num">~99%</td><td class="num">96.7%</td><td class="num">—</td><td class="hi">23.7%</td></tr>
+          <tr><td>Cost per task</td><td class="num">$0.36–0.46</td><td class="num">$0.073</td><td class="num">$0.073</td><td class="num">$0.116</td></tr>
         </tbody>
       </table>
     </div>
-
     <div class="col">
-      <p>The real agent found the planted cause in seven queries — a per-order value collapse confined to EMEA&nbsp;×&nbsp;paid_search beginning 2026-07-12, with order volume flat — and correctly called it a pricing or currency bug rather than a demand problem. It wrote its own <code>GROUP BY</code> rollups instead of fanning out per-day probes, and cited every result it retrieved.</p>
+      <p><strong>Cross-session redundancy: 13.0%.</strong> Eight agents asking deliberately overlapping questions of the same two tables shared enough structure to eliminate 3 of 23 per-session rollups. Best-case materialization was 20 anchors serving 25 queries — a 20% reduction, against the ~90% the simulation promised.</p>
     </div>
+  </section>
 
-    <h3>What held up, and what didn't</h3>
+  <!-- ============ THE FOUR DEATHS ============ -->
+  <section>
+    <h2>Four versions of the claim</h2>
     <div class="verdicts">
       <div class="verdict">
-        <div class="vhead">
-          <span class="vname">Speculation waste</span>
-          <span class="chip died">did not reproduce</span>
-        </div>
-        <p class="vbody">The simulator spent <strong>85%</strong> of its bill on queries whose results never reached the answer. The real agent's figure was <strong>zero</strong> — every result it fetched, it used. A capable model with a well-described tool does not flail the way the fan-out model assumes.</p>
+        <div class="vhead"><span class="vname">Speculation waste</span><span class="chip died">refuted</span></div>
+        <p class="vbody">The simulated agent used 4 of 93 results. Real agents used <strong>34 of 41</strong> across eight sessions — and that is verified against the answer text, not self-reported. One session of eight showed genuine waste (3 of 9 grounded). It is the exception, not the pattern.</p>
       </div>
       <div class="verdict">
-        <div class="vhead">
-          <span class="vname">Synthesized anchors</span>
-          <span class="chip died">did not reproduce</span>
-        </div>
-        <p class="vbody">This was the strongest technical idea here: the useful rollup is the query <em>nobody ran</em>. But all four of the real agent's covering anchors were <em>observed</em> queries — it had already written the rollups a materialization recommender would suggest. The recommender had nothing to recommend.</p>
+        <div class="vhead"><span class="vname">Cross-session sharing</span><span class="chip died">13%, too small</span></div>
+        <p class="vbody">The strongest reframe after the single-agent result: no agent need be wasteful, only for different people to ask related questions of the same tables. Deliberately overlapping questions, one warehouse, eight agents — <strong>13%</strong>. Materialization still helps, but that is ordinary warehouse optimization, not an agent-specific prize.</p>
       </div>
       <div class="verdict">
-        <div class="vhead">
-          <span class="vname">Redundancy</span>
-          <span class="chip partial">weaker, and unreliable</span>
-        </div>
-        <p class="vbody">Subsumption caught 90.3% of the simulated workload and <strong>42.9%</strong> of the real one. Treat even that as soft: the shape extractor mishandles the positional <code>GROUP BY 1, 2</code> and <code>date_trunc()</code> expressions real agents write, so the real-trace covering set is less trustworthy than the simulated one.</p>
+        <div class="vhead"><span class="vname">Weak models fan out</span><span class="chip died">refuted</span></div>
+        <p class="vbody">The best theoretical argument, and the one the source paper implies most directly: if intelligence is free, you deploy <em>small</em> models at scale, and small models probe more. Haiku 4.5 on the identical question issued <strong>5 queries to Opus's 6</strong>, with the same tight investigative structure. No fan-out.</p>
       </div>
       <div class="verdict">
-        <div class="vhead">
-          <span class="vname">The idle tax</span>
-          <span class="chip held">reproduced</span>
-        </div>
-        <p class="vbody"><strong>96.7%</strong> of the modelled bill was warehouse time spent waiting on the model rather than executing SQL. This is the finding that doesn't require agents to be <em>wasteful</em> — only slow between queries, which is intrinsic. But its magnitude collapses with the query count: batching saves 1.4×, not 7–9×, and the whole task costs seven cents.</p>
+        <div class="vhead"><span class="vname">The idle tax</span><span class="chip died">artifact of n=1</span></div>
+        <p class="vbody">96.7% of a lone agent's bill was warehouse time spent waiting on the model — I published that as the one robust finding. With <strong>8 concurrent agents sharing one warehouse, idle fell to 23.7%</strong>: 851 of 1116 billed seconds were productive. Their think-time gaps interleave. The measurement was right and the conclusion was wrong.</p>
       </div>
-      <div class="verdict">
-        <div class="vhead">
-          <span class="vname">Exact-match caching is worthless</span>
-          <span class="chip held">reproduced</span>
-        </div>
-        <p class="vbody">Literal SQL matching caught <strong>0%</strong> of the real workload and 1.1% of the simulated one; AST normalization added another 1–2%. Whatever value exists in this layer is in view-matching — not the prompt-level semantic caching today's LLM gateways ship.</p>
-      </div>
-    </div>
-
-    <div class="callout col">
-      <p><strong>n=1.</strong> One task, with one planted single-cause answer, one strong model, one good tool description. A vaguer question, a weaker model, or a harness that encourages parallel fan-out could look entirely different. Read this as <em>"this agent, on this task, didn't speculate"</em> — not as "agents don't speculate."</p>
     </div>
   </section>
 
-  <!-- ============ THE PART THAT STANDS ============ -->
+  <!-- ============ CONCURRENCY METER ============ -->
   <section>
-    <h2>What still stands: the trace primitive</h2>
-    <div class="col stack-sm">
-      <p>Two identical queries from two different user tasks are legitimately two queries. Two identical queries inside one agent's speculation loop are one query plus wasted spend. <strong>Same SQL, opposite verdicts</strong> — and nothing in a warehouse's query history distinguishes them.</p>
-      <p>So the chain runs in one direction only, and every link needs the one before it:</p>
-    </div>
-    <div class="panel panel-wide">
-      <pre class="tree"><span class="cited">identity</span> → <span class="cited">plan lineage</span> → <span class="cited">redundancy classification</span> → <span class="roll">dedup / approximation</span> → <span class="roll">savings</span></pre>
+    <h2>The finding that reversed itself</h2>
+    <div class="duo">
+      <div class="panel">
+        <span class="label">One agent · dedicated warehouse</span>
+        <div class="meter"><span class="used" style="width:3.3%"></span><span class="idle"></span></div>
+        <div class="meter-key">
+          <span class="swatch"><i style="background:var(--measure)"></i>2.9s productive</span>
+          <span class="swatch"><i style="background:var(--tax)"></i>84s idle — 96.7%</span>
+        </div>
+      </div>
+      <div class="panel">
+        <span class="label" style="color:var(--measure)">Eight agents · shared warehouse</span>
+        <div class="meter"><span class="used" style="width:76.3%"></span><span class="idle"></span></div>
+        <div class="meter-key">
+          <span class="swatch"><i style="background:var(--measure)"></i>851s productive</span>
+          <span class="swatch"><i style="background:var(--tax)"></i>265s idle — 23.7%</span>
+        </div>
+      </div>
     </div>
     <div class="col">
-      <p>Existing warehouse-cost tools start at step four, because steps one through three aren't recoverable from query history alone. That argument is unaffected by the results above — what the real run challenges is whether steps four and five are worth much once you have them.</p>
+      <p>"You are paying a warehouse to watch an LLM think" is true of one agent on its own warehouse, and it is the kind of finding that is easy to publish and hard to un-publish. It disappears the moment agents share infrastructure — which is the only way anyone would actually deploy them. <strong>Measuring a single instance of a concurrent system produced exactly the wrong conclusion.</strong></p>
     </div>
   </section>
 
-  <!-- ============ MECHANISM ============ -->
+  <!-- ============ WHAT SURVIVED ============ -->
   <section>
-    <h2>The mechanism: stay out of the data path</h2>
-    <div class="col">
-      <p>Adoption dies at "install a proxy in front of your warehouse." So v1 adds nothing to the data path but a comment. Trace context is injected <a href="https://google.github.io/sqlcommenter/">sqlcommenter</a>-style; the warehouse logs it verbatim; the plan tree is reconstructed offline from a file the warehouse already writes. This worked unchanged for both the simulated and the real agent.</p>
-    </div>
-
+    <h2>What survived: the trace primitive</h2>
     <div class="transform">
       <span class="label">What Postgres wrote to its own log</span>
-      <div class="logline"><span class="ts">2026-07-28 23:41:07.882 PDT [16233] LOG:  statement:</span> <span class="tag">/*agenttrace:t=673e90a1…,s=a17f2b,p=6c9e04,a=claude-code-analyst,c=refine,i=Break%20down%20revenue%20by%20region*/</span>
-    SELECT date_trunc('month', order_date) AS month, region, sum(amount) … GROUP BY 1, 2</div>
-      <div class="tdivide"></div>
-      <div class="fields">
-        <div class="field"><span class="k">trace_id</span><span class="v">673e90a1f8f1b899</span></div>
-        <div class="field"><span class="k">span / parent</span><span class="v">a17f2b ← 6c9e04</span></div>
-        <div class="field"><span class="k">agent</span><span class="v">claude-code-analyst</span></div>
-        <div class="field"><span class="k">speculation class</span><span class="v">refine</span></div>
-        <div class="field"><span class="k">billed</span><span class="v">14.8 warehouse-sec</span></div>
-        <div class="field"><span class="k">used_downstream</span><span class="v hi">true</span></div>
-      </div>
+      <div class="logline"><span class="ts">2026-07-28 23:41:07.882 PDT [16233] LOG:  statement:</span> <span class="tag">/*agenttrace:t=673e90a1…,s=a17f2b,p=6c9e04,a=claude-code-analyst,c=refine,i=revenue%20by%20region*/</span>
+    SELECT date_trunc('month', order_date), region, sum(amount) FROM orders GROUP BY 1, 2</div>
     </div>
-
     <div class="col stack-sm">
-      <p>Values are URL-encoded, so quotes, spaces and <code>*/</code> in intent text cannot break out of the comment. Zero added latency, zero interception, nothing to trust.</p>
-      <p>Two fields can't come from the database at all. <code>used_downstream</code> needs the agent to record which results informed its answer. And on the real run, <em>lineage itself is self-declared</em> — the tool asks the model for <code>intent</code> and <code>follows_from</code>, so the tree is the agent's own account of its reasoning, with whatever inaccuracy that carries.</p>
+      <p>Query lineage, per-agent cost attribution, and verified answer-grounding all reconstruct from a log the warehouse already writes, with nothing in the data path. <strong>Cost per resolved task</strong> — the number that decides whether an agent deployment survives budget review — becomes measurable where it wasn't before.</p>
+      <p>That is an observability tool. It is not an optimization platform, and the optimization code in the repo is now labelled as measured-and-small rather than built out further.</p>
     </div>
-  </section>
 
-  <!-- ============ THE TWO TREES ============ -->
-  <section>
-    <h2>The two plan trees</h2>
+    <h3>Verifying citations rather than trusting them</h3>
     <div class="col">
-      <p>Both reconstructed from the Postgres log alone. The visual difference is the whole finding.</p>
-    </div>
-    <div class="duo">
-      <div class="panel panel-wide">
-        <span class="label">Simulated — 93 queries, 4 cited</span>
-        <pre class="tree">   discover schema orders          $0.002
-   peek rows orders                $0.000
-<span class="cited">✓</span>  confirm monthly drop            $0.014
-<span class="cited">✓</span>  confirm monthly drop (july)     $0.012
-   hypothesis: order volume fell   $0.010
-     └─ <span class="roll">31×</span> daily volume &lt;date&gt;      <span class="roll">$0.076</span>
-   hypothesis: AOV fell            $0.014
-     └─  3× cosmetic retries       $0.037
-   hypothesis: mix shift           $0.018
-     └─ <span class="roll">12×</span> cell &lt;region&gt;/&lt;channel&gt;  <span class="roll">$0.081</span>
-<span class="cited">✓</span>  rollup region x channel         $0.022
-   hypothesis: refunds  <span class="cost">(dead end)</span> $0.001
-   isolate EMEA paid_search        $0.009
-     └─ <span class="roll">31×</span> emea &lt;channel&gt; &lt;date&gt;    <span class="roll">$0.059</span>
-<span class="cited">✓</span>  final confirming query          $0.007</pre>
-      </div>
-      <div class="panel panel-wide">
-        <span class="label" style="color:var(--measure)">Real — 7 queries, 7 cited</span>
-        <pre class="tree"><span class="cited">✓</span> Compare gross revenue Jun vs Jul   $0.011
-  <span class="cited">✓</span> Confirm AOV trend Jun vs Jul     $0.010
-  <span class="cited">✓</span> Check refunds spiked in July     $0.001
-  <span class="cited">✓</span> Break down by region             $0.026
-  <span class="cited">✓</span> Break down by channel            $0.012
-    <span class="cited">✓</span> EMEA+paid_search isolated?     $0.010
-      <span class="cited">✓</span> Find exact day of collapse   $0.005</pre>
-        <p style="font-size:.9rem;color:var(--ink-2);margin-top:auto">Every node cited. No fan-out, no retries, no dead end — the refunds hypothesis was checked once, in one query, and correctly dropped.</p>
-      </div>
+      <p>Whether a query's result reached the answer is the field the entire waste analysis rests on — and the obvious implementation, asking the agent, is the agent grading its own homework. So values from each result set are matched against the final answer with numeric tolerance for the rounding models do in prose (<code>$319.9M</code> for <code>319875432.11</code>).</p>
+      <p>It catches errors in both directions. Haiku claimed three queries and was grounded in four — one it used but never claimed. Opus claimed six, all six grounded, five by a value no other query produced.</p>
     </div>
   </section>
 
-  <!-- ============ COST ============ -->
+  <!-- ============ BUGS ============ -->
   <section>
-    <h2>Where the money went — the one thing that held</h2>
-    <div class="panel">
-      <span class="label">Real agent · 27s wall clock · 1 warehouse resume</span>
-      <div class="meter"><span class="used" style="width:3.3%"></span><span class="idle"></span></div>
-      <div class="meter-key">
-        <span class="swatch"><i style="background:var(--measure)"></i>productive query execution — 2.9s</span>
-        <span class="swatch"><i style="background:var(--tax)"></i>idle + cold-start tax — 84s</span>
-      </div>
+    <h2>Five bugs, three of them flattering</h2>
+    <div class="col">
+      <p>Each of these moved a headline number. Three moved it in the direction I wanted, which is the part worth noticing.</p>
     </div>
-    <div class="col stack-sm">
-      <p>The agent's think-time between queries is 1–9 seconds, so a 60-second auto-suspend never fires. The warehouse stays hot for the whole task while doing under three seconds of work. <strong>You are paying a warehouse to watch an LLM think</strong> — and that doesn't depend on the agent being wasteful, only on it being slow between queries, which is intrinsic to the architecture.</p>
-      <p>What the real run takes away is the <em>magnitude</em>. At seven queries the total is $0.073 and batching recovers 1.4×. The simulator's 7–9× came from having 93 queries scattered across a long window; that scatter was an artifact of the model, not an observed property of agents.</p>
+    <div class="bugs">
+      <div class="bug">
+        <span class="bt">Applied the simulator's 100× time dilation to a real trace</span>
+        <span class="bd">The simulator compresses think-time; the scaling factor was applied unconditionally to timestamps that were already real.</span>
+        <span class="bdelta">reported 2708s and 7 warehouse resumes → actually 27s and 1</span>
+      </div>
+      <div class="bug">
+        <span class="bt">Substring-matched numeric values</span>
+        <span class="bd">Postgres returns <code>numeric</code> as a string, so result values were compared as text against prose. <code>"69.33124…"</code> never appears in an answer that says <code>$69.33</code>.</span>
+        <span class="bdelta">grounding under-reported as 3/6 → actually 6/6</span>
+      </div>
+      <div class="bug">
+        <span class="bt">Regex-"parsed" SQL</span>
+        <span class="bd">The extractor could not read <code>GROUP BY 1, 2</code>, <code>date_trunc()</code>, casts or aliases — precisely what real agents write — and emitted dimensions literally named <code>"1"</code> and <code>"2"</code>.</span>
+        <span class="bdelta">every covering-set number on real SQL was noise until it was replaced</span>
+      </div>
+      <div class="bug">
+        <span class="bt">Divided by the wrong denominator</span>
+        <span class="bd">Counted queries the parser <em>couldn't model</em> as successfully deduplicated.</span>
+        <span class="bdelta">reported 51% dedup → against servable queries, 20%</span>
+      </div>
+      <div class="bug">
+        <span class="bt">Line-anchored the citation regex</span>
+        <span class="bd">Models write <code>**CITED: q1, q4**</code>; a <code>/^CITED:/</code> scored that run as citing nothing.</span>
+        <span class="bdelta">Haiku scored 0 claimed against 4 grounded</span>
+      </div>
     </div>
     <div class="callout col">
-      <p><strong>A bug worth naming.</strong> The first real-agent report claimed a 2708-second wall clock and seven warehouse resumes. The assembler was applying the simulator's 100× think-time dilation unconditionally to a trace whose timestamps were already real. Actual figures: 27 seconds, one resume. Dilation is now a CLI argument defaulting to 1 — the numbers on this page are post-fix.</p>
+      <p>The parser replacement is the one that matters structurally. Its successor declines queries it cannot model — joins, CTEs, <code>OR</code>, <code>HAVING</code> — rather than guessing at them: <strong>12 of 41 real queries excluded</strong>. Excluding lowers reported coverage; mis-parsing inflates it. Coverage figures here are lower bounds, deliberately.</p>
     </div>
   </section>
 
-  <!-- ============ FINGERPRINTS ============ -->
+  <!-- ============ LIMITS ============ -->
   <section>
-    <h2>Fingerprint tiers</h2>
-    <div class="tw">
-      <table>
-        <thead><tr><th>Tier</th><th>Catches</th><th class="num">Simulated</th><th class="num">Real</th></tr></thead>
-        <tbody>
-          <tr><td class="mono">exact</td><td>literal retries</td><td class="num">1.1%</td><td class="num">0.0%</td></tr>
-          <tr><td class="mono">ast_hash</td><td>alias renames, predicate reordering, whitespace</td><td class="num">2.2%</td><td class="num">0.0%</td></tr>
-          <tr><td class="mono">subsumption</td><td>probes answerable from a coarser result</td><td class="num" style="color:var(--measure);font-weight:600">90.3%</td><td class="num" style="color:var(--tax);font-weight:600">42.9%</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="col">
-      <p>The relative ordering survives — exact matching is near-useless, subsumption is where any value lives. What changes is the size of the prize, and how much you can trust the measurement. Tiers 2 and 3 use a tokenizer and a structured extractor for the common aggregate shape, not a real SQL parser. That was an acceptable shortcut for sizing a prize on synthetic SQL; it is <em>not</em> acceptable on the SQL a real agent writes, and the 42.9% should be treated as provisional until sqlglot or Calcite sits behind the same interface.</p>
-    </div>
-  </section>
-
-  <!-- ============ LADDER ============ -->
-  <section>
-    <h2>Trust ladder, revised</h2>
-    <div class="col">
-      <p>Each rung is still earned with evidence from the rung below. What changed is how much evidence rungs 3–5 now have behind them.</p>
-    </div>
-    <div class="ladder">
-      <div class="rung">
-        <span class="n">1</span>
-        <div class="body">
-          <div class="t">Observe <span class="chip held">validated on both agents</span></div>
-          <p class="d">Comment injection, log reconstruction, fingerprinting, cost attribution. Read-only, out of path. The trace reconstructed cleanly from a real agent's traffic with no changes.</p>
-        </div>
-      </div>
-      <div class="rung">
-        <span class="n">2</span>
-        <div class="body">
-          <div class="t">Advise <span class="chip partial">weaker than modelled</span></div>
-          <p class="d">Batching and warehouse-sizing recommendations. Still the best-supported intervention, but worth 1.4× on the real trace rather than 7–9×.</p>
-        </div>
-      </div>
-      <div class="rung future">
-        <span class="n">3</span>
-        <div class="body">
-          <div class="t">Materialize <span class="chip died">little evidence</span></div>
-          <p class="d">Auto-create synthesized anchors. The real agent had already written its own rollups, leaving nothing to synthesize.</p>
-        </div>
-      </div>
-      <div class="rung future">
-        <span class="n">4</span>
-        <div class="body">
-          <div class="t">Intercept <span class="chip died">little evidence</span></div>
-          <p class="d">Dedup, serve-from-anchor, approximate-first. Predicated on redundancy that a real agent did not exhibit.</p>
-        </div>
-      </div>
-      <div class="rung future">
-        <span class="n">5</span>
-        <div class="body">
-          <div class="t">Steer <span class="chip died">little evidence</span></div>
-          <p class="d">Return guidance instead of data. Still unbuilt anywhere — but the case for needing it is weaker than it looked.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ WHERE THIS LEAVES IT ============ -->
-  <section>
-    <h2>Where this leaves the idea</h2>
-    <div class="col stack-sm">
-      <p>The observability primitive stands on its own. The trace reconstructs from logs the warehouse already writes, and <strong>cost per resolved task</strong> — the number that decides whether an agent deployment survives budget review — becomes measurable where it previously wasn't. Nothing in the real run undermines that.</p>
-      <p>The optimization layer is a different story. On this evidence the money is in <strong>scheduling and warehouse economics</strong>, not in deduplicating agent speculation. That is a narrower product than the one the simulation implied, and it sits closer to what the existing warehouse-cost vendors already do — which weakens the "they structurally can't copy this" argument that made the wedge attractive.</p>
-    </div>
-
-    <h3>What could still change the picture</h3>
+    <h2>What would still change my mind</h2>
     <div class="col">
       <ul>
-        <li><strong>Harder questions.</strong> This one had a single planted cause and a clean answer. Ambiguous or multi-cause investigations may fan out far more.</li>
-        <li><strong>Worse tool surfaces.</strong> The agent got one well-described tool over a clean schema. Real enterprise warehouses have thousands of tables and no such clarity.</li>
-        <li><strong>Weaker or cheaper models.</strong> The economic argument for agents is that intelligence is cheap — which points at deploying <em>smaller</em> models at scale, and smaller models are exactly the ones expected to probe more.</li>
-        <li><strong>Parallel fan-out harnesses.</strong> Multi-agent setups that spawn many concurrent investigators are the case the redundancy thesis was really written for, and this run didn't test one.</li>
+        <li><strong>A multi-agent coordinator</strong> spawning parallel subagents over one warehouse. This is the redundancy thesis's best remaining home and it is untested — concurrent investigators re-deriving each other's context is a different shape from eight independent sessions.</li>
+        <li><strong>A wide schema</strong> — 100+ tables, where the agent must search for the right table before it can query it. Tool-surface confusion is where agents plausibly flail; two clean tables tests nothing.</li>
+        <li><strong>Ambiguous, multi-cause questions.</strong> This dataset has one planted cause and a clean answer.</li>
       </ul>
+      <p>All three are a config change away in this harness, which is the actual deliverable. The negative result took eight agents and about six dollars of inference to produce; reviving the thesis would cost about the same.</p>
     </div>
     <div class="callout good col">
-      <p>Each of those is a run, not an argument. The harness now exists — swapping the question, the model, or the tool surface is a one-line change, and the trace comes out the same shape every time. That is the actual deliverable.</p>
+      <p><strong>The honest summary:</strong> a real trace primitive, a documented method for testing this class of claim cheaply, and a negative result that saves the next person a month. The optimization platform was not there to be built.</p>
     </div>
   </section>
 
   <hr class="rule">
-  <p class="foot col">Prototype: ~1,000 lines of Node against Postgres 18 with <code>log_statement=all</code>, 4.39M rows. Real agent is Claude Opus 5 driven headlessly through Claude Code, with the warehouse exposed as a single <code>run_sql</code> MCP tool; lineage is self-declared by the model via <code>intent</code> and <code>follows_from</code>. Warehouse pricing modelled on Snowflake XS, $3/credit, 60s minimum billing, 60s auto-suspend, applied to real Postgres execution times — treat the ratios as the finding, not the absolute dollars. Simulated-agent think-time is compressed 100× and scaled back before billing; the real agent's timestamps are used as-is. Source and raw run output: <a href="https://github.com/gpatwa/agent-data-observability">github.com/gpatwa/agent-data-observability</a>.</p>
+  <p class="foot col">Postgres 18 with <code>log_statement=all</code>, 4.39M rows. Real agents are Claude Opus 5 and Haiku 4.5 driven headlessly through Claude Code, warehouse exposed as a single <code>run_sql</code> MCP tool; lineage self-declared via <code>intent</code> and <code>follows_from</code>. Query shapes parsed to AST, with unmodellable queries excluded rather than guessed. Warehouse pricing modelled on Snowflake XS ($3/credit, 60s minimum, 60s auto-suspend) applied to real Postgres execution times — the ratios are the finding, not the dollars. Simulated think-time compressed 100× and scaled back before billing; real timestamps used as-is. 31 unit tests, weighted toward negative subsumption cases. Source, raw logs and per-run reports: <a href="https://github.com/gpatwa/agent-data-observability">github.com/gpatwa/agent-data-observability</a>.</p>
 
 </div>
