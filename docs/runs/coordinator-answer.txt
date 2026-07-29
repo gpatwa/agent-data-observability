@@ -1,0 +1,18 @@
+## July 2026 Revenue: What Changed and Why
+
+**Headline:** Gross revenue fell from **$324.0M (June) to $319.9M (July)**, a **-1.25%** decline, even though order volume *rose* 3.3% (2.16M → 2.232M orders, fully explained by July having one extra day — daily order volume was flat at exactly 72,000/day all summer, no demand growth). Refunds are immaterial (~$268K vs ~$332K, <0.1% of revenue either month) and not a driver.
+
+**Root cause — isolated, not systemic:** Across all 12 region×channel combinations, 11 behaved identically: orders +3.3%, AOV flat at ~$150, revenue +3.3% (~+$10.8M combined). One segment broke the pattern entirely:
+
+**EMEA × paid_search** — order volume grew normally (6,000/day → 6,000/day, same customers, same ~9 orders/customer), but **order value collapsed on 2026-07-12** from a $40–$260 range (AOV ~$149.4) to a **$10–$40 range (AOV ~$24.9)** — an instant, sustained step-change, not a gradual drift. I confirmed this directly: June 25–July 11 held steady at ~$149–151 AOV with a $40 floor; July 12 onward locked into a $10–$40 range with AOV ~$25, unchanged through July 15 and (per subagent verification) through July 31. The new $10–$40 floor/ceiling picks up exactly where the old range's floor ($40) was — consistent with a pricing/discount-config or data-pipeline defect specific to that segment, not a genuine demand or market shift. The top of the order-value distribution (p99, max=$260) was completely untouched, and there's no round-number clustering that would suggest a simple coupon code.
+
+**Segment financial impact:**
+- EMEA × paid_search: $27.0M → $12.9M (**-$14.1M, -52%**)
+- Every other segment combined: +$10.0M (organic volume growth, flat pricing)
+- Net: **-$4.06M**, reconciling exactly to the observed June→July decline.
+
+No mix-shift (each segment's share of total order volume was identical both months), no customer churn (100% of July's customers were active in June, 0 net-new), no whale/big-order loss, and no refund effect — all of that is flat. This is a single-segment pricing/data anomaly that began precisely on July 12 and persisted for the rest of the month, large enough by itself to turn an otherwise healthy +3.3%-volume-driven growth month into a net revenue decline.
+
+**Recommendation:** Escalate to whoever owns EMEA paid_search pricing/attribution — check for a broken price table, currency/unit conversion bug, or an incorrectly-scoped promo/discount rule that went live July 12 and was still active at month-end.
+
+CITED: q1, q2, q22, q25

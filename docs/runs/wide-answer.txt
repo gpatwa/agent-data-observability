@@ -1,0 +1,15 @@
+## Why revenue dropped in July 2026
+
+**It didn't drop because of weaker demand — order volume grew 3.3% (2.16M → 2.23M orders) in every single region×channel segment, June to July.** Total revenue fell slightly ($324.0M → $319.9M, -1.25%) only because one segment's average order value collapsed:
+
+- **EMEA × paid_search** average order value fell from **~$150 to ~$25 (-83%)**, starting precisely on **2026-07-12**, and stayed there for the rest of the month (verified through 7/31).
+- The distribution itself shifted, not just scaled: pre-7/12 orders ranged $40–$260 (avg $149, stdev $63); from 7/12 on, orders ranged $10–$40 (avg $25, stdev $8.6) — a different pricing regime, not noisy fluctuation.
+- Order counts in that segment were completely normal (6,000/day before and after) — customers kept converting at the same rate, they just got billed roughly one-sixth as much per order.
+- Every other region×channel combination (23 of 24) grew revenue ~3.3% in line with volume, with AOV pinned to ~$150. EMEA×paid_search is the only outlier.
+- Magnitude check: EMEA×paid_search revenue fell $27.0M → $12.9M (-$14.1M). Had it grown at the same 3.3% as every other segment, July revenue would have been ~$335M (+3.4% over June) instead of $319.9M. This single segment fully explains why an underlying growth month reads as a decline.
+
+This has the signature of a **pricing/billing pipeline defect** isolated to EMEA paid-search orders (e.g., a broken price list, currency/unit conversion, or discount misapplication introduced around July 12) rather than a genuine demand or market problem — real customer traffic and conversion in that segment were unaffected.
+
+**Recommendation:** treat this as a data/pricing incident, not a demand problem — check whatever system sets order amount for EMEA paid_search traffic (price list, discount engine, currency conversion) for a change deployed around 2026-07-12.
+
+CITED: q5, q9, q10, q11, q15, q16

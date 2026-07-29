@@ -236,8 +236,11 @@ async function main() {
   console.log(`  distinct, AST-normalized        ${distinctAst}  → ${pct(1 - distinctAst / total)} caught by normalization`);
   console.log(`  aggregate queries               ${aggIdx.length}`);
   console.log(`  minimal covering set            ${cover.anchors.length} rollups answer ${cover.coveredCount}/${cover.total}`);
-  const distinctPlans = cover.anchors.length / total;
-  console.log(`\n  DISTINCT SUB-PLANS              ${pct(distinctPlans)}   ${bar(distinctPlans)}`);
+  console.log(`  excluded as unmodellable        ${cover.unmodelled}  (schema lookups, joins, CTEs — not servable by a rollup)`);
+  // Measured against queries the anchors could actually serve. Dividing by every
+  // query counts unmodellable ones as deduplicated, which they are not.
+  const distinctPlans = cover.coveredCount ? cover.anchors.length / cover.coveredCount : 1;
+  console.log(`\n  DISTINCT SUB-PLANS              ${pct(distinctPlans)}   ${bar(distinctPlans)}   (of servable queries)`);
   console.log(`  REDUNDANCY                      ${pct(1 - distinctPlans)}   ${bar(1 - distinctPlans)}`);
   console.log(`  (BAIR post reports 10–20% distinct sub-plans across agent attempts)`);
 

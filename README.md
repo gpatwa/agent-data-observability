@@ -12,19 +12,24 @@ I built the trace primitive needed to measure it, then measured it against real 
 
 ## Headline
 
-| | Simulated naive agent | Real agent (Opus 5) | Real agent (Haiku 4.5) | 8 concurrent real agents |
-|---|---|---|---|---|
-| Queries for one question | 93 | 6 | 5 | 41 total |
-| Distinct sub-plans | 9.7% | 57% | 60% | — |
-| Results that reached the answer | 4 / 93 | **6 / 6** | 4 / 5 | **34 / 41** |
-| Idle share of warehouse bill | ~99% | 96.7% | — | **23.7%** |
-| Cost per task | $0.36–0.46 | $0.073 | $0.073 | $0.116 |
+Six conditions, chosen to give the thesis its best shot. Redundancy is measured against queries a rollup could actually serve — schema lookups, joins and CTEs are excluded rather than counted as deduplicated.
 
-**Cross-session redundancy: 13.0%.** Sharing rollups across eight agents' worth of overlapping questions eliminated 3 of 23 per-session anchors. Best-case materialization was 20 anchors serving 25 queries — a **20% reduction**, not the ~90% the simulation implied.
+| Condition | Queries | Servable | Anchors | **Redundancy** | Grounded |
+|---|---|---|---|---|---|
+| Simulated naive agent | 93 | 89 | 9 | **~90%** | 4 / 93 |
+| Real agent, Opus 5 | 6 | 7 | 4 | 42.9% | 6 / 6 |
+| Real agent, Haiku 4.5 | 5 | 3 | 3 | 0% | 4 / 5 |
+| 8 concurrent sessions | 41 | 25 | 20 | 20.0% | 34 / 41 |
+| Wide schema, 120 tables | 17 | 7 | 4 | 42.9% | 16 / 17 |
+| **Coordinator + subagents** | 25 | 11 | 10 | **9.1%** | 25 / 25 |
+
+Only the simulator — the one built from the published description rather than observed — reaches the redundancy the thesis needs. **The two conditions most like the thesis's own premise, concurrent sessions and a delegating coordinator, produced the least of it.**
+
+**Cross-session redundancy: 13.0%.** Sharing rollups across eight agents' worth of overlapping questions eliminated 3 of 23 per-session anchors.
 
 ---
 
-## The four claims, and how each died
+## The six claims, and how each died
 
 **1. Agents waste most of their queries on speculation that never reaches the answer.** *Refuted.*
 The simulated agent used 4 of 93 results. Real agents used **34 of 41** across eight sessions, and this is verified rather than self-reported — see "Verifying citations" below. One session out of eight (`refunds`, 3/9 grounded) showed real waste; it is the exception, not the pattern.
@@ -37,6 +42,12 @@ This was the strongest theoretical argument, and directly what "intelligence is 
 
 **4. You are paying a warehouse to watch an LLM think.** *An artifact of measuring one agent.*
 True for a lone agent on a dedicated warehouse: 96.7% of the bill was idle. But with **8 concurrent agents sharing one warehouse, idle fell to 23.7%** — 851 of 1116 billed seconds were productive. Agents' think-time gaps interleave. The finding was real and the conclusion was wrong.
+
+**5. A coordinator delegating to parallel subagents will duplicate work.** *Refuted — and it went the other way.*
+This was the thesis's best remaining home: independent investigators, no shared context, each re-deriving what the others already computed. The coordinator issued 25 queries across delegated subagents and produced **9.1% redundancy — the lowest of any condition tested**, with 25/25 results grounded in the answer. Delegation bought *more distinct* work, not duplicated work, because each subagent was handed a genuinely different angle.
+
+**6. A wide schema will make agents flail.** *Partly true, and it doesn't help.*
+Burying `orders`/`refunds` in 120 plausible decoy tables and withholding the schema nearly tripled query count, 6 → **17**. But the extra queries were `information_schema` lookups, and redundancy among *servable* queries was **42.9% — identical to the narrow-schema run**. Schema discovery is real traffic that a rollup cache cannot serve; it is cacheable only in the trivial sense that a catalog is static.
 
 ## What survived
 
@@ -76,7 +87,11 @@ npm test                  # 31 unit tests, no database needed
 ./scripts/demo.sh         # seeds 4.4M rows, runs the simulated agent
 node src/real-agent.mjs "Why did revenue drop in July 2026?"
 node src/real-agent.mjs "..." --model claude-haiku-4-5 --tag haiku
-node src/cross-session.mjs --concurrency 4     # 8 agents, ~$2 of LLM spend
+node src/real-agent.mjs "..." --wide --tag wide        # 120-table schema, hidden
+node src/real-agent.mjs "..." --subagents --tag coord  # delegating coordinator
+node src/cross-session.mjs --concurrency 4            # 8 agents, ~$2 of LLM spend
+
+psql -f seed-wide.sql   # adds the 120 decoy tables (needed for --wide)
 ```
 
 The demo creates a throwaway cluster on port 55432; it does not touch an existing Postgres instance. Raw output from every run described above is in [`docs/runs/`](docs/runs/).
@@ -91,6 +106,7 @@ These are in the repo history, and they are the most useful part of it.
 - **Substring-matched numeric values.** Postgres returns `numeric` as a string, so result values were compared as text against prose. `"69.33124..."` never appears in an answer that says `$69.33`, so grounding was under-reported as 3/6 when it was really 6/6.
 - **Regex-"parsed" SQL.** The original extractor could not read `GROUP BY 1, 2`, `date_trunc()`, casts, or aliases — exactly what real agents write — and emitted dimensions literally named `"1"` and `"2"`. Every covering-set number computed on real SQL before [`src/shape.mjs`](src/shape.mjs) was noise.
 - **Divided by the wrong denominator.** Reported "51% dedup" by counting queries the parser *couldn't model* as deduplicated. Against queries the anchors can actually serve, it is 20%.
+- **Named the subagent tool `Task` instead of `Agent`.** The coordinator condition ran with delegation silently disabled — `--allowedTools` does not error on an unknown tool name, so the model simply never delegated and the run looked like a perfectly valid single-agent trace. Caught only by checking backend connections and turn count against expectation, then probing which tool name actually spawns subagents. The first coordinator result was invalid and was rerun.
 - **Line-anchored the citation regex.** Models write `**CITED: q1, q4**`; a `/^CITED:/` scored that run as citing nothing.
 
 Every one of these moved a headline number, and three of them moved it in the flattering direction.
@@ -99,10 +115,8 @@ Every one of these moved a headline number, and three of them moved it in the fl
 
 ## What this is not
 
-- **Small n.** One question shape, one dataset, two models, eight concurrent sessions. Not a study.
+- **Small n.** One dataset, two models, six conditions, one run each. Not a study — a cheap screen.
 - **The dataset has a single planted cause.** Real investigations are messier and may fan out more.
-- **The schema is two tables.** Tool-surface confusion on a 200-table warehouse is where agents plausibly flail, and this does not test it.
-- **No multi-agent coordinator.** A coordinator spawning parallel subagents is the redundancy thesis's best remaining home and is untested here.
 - **`unmodelled` is not zero.** The parser declined 12 of 41 real queries rather than guess. Excluding lowers reported coverage; mis-parsing would inflate it. Excluding is the honest failure, but it means coverage figures are lower bounds.
 - **Cost figures model Snowflake, run on Postgres.** Snowflake XS billing rules applied to real Postgres execution times. Treat the ratios as the finding, not the dollars.
 
@@ -119,11 +133,18 @@ Every one of these moved a headline number, and three of them moved it in the fl
 | `src/cross-session.mjs` | Fans out N agents; covering set across the union of traces |
 | `src/verify-citations.mjs` | Value-grounded citation verification |
 | `src/agent-sim.mjs` | Simulated naive agent — a deterministic fixture, not evidence |
+| `seed-wide.sql` | 120-table decoy schema for the wide-schema condition |
 | `test/` | 31 tests, weighted toward negative subsumption cases |
 
 ## If you want to revive the thesis
 
-The two conditions this did not test, in order of promise: a **multi-agent coordinator** spawning parallel subagents over one warehouse, and a **wide schema** (100+ tables) where the agent must search for the right table before it can query it. Both are a config change away in this harness. If redundancy is anywhere, it is there.
+Both conditions I thought most likely to revive it — a delegating coordinator and a 120-table schema — have now been run, and both came back negative. What remains untested, in order of promise:
+
+- **Genuinely ambiguous questions with no single cause.** Every run here had one planted answer to find.
+- **A much larger warehouse** where individual queries are slow enough that materialization pays for itself on latency alone, independent of redundancy.
+- **Agents with memory across sessions**, which might re-derive prior context rather than re-reading it.
+
+`node src/real-agent.mjs "<question>" [--wide] [--subagents] [--model X]` runs any of them.
 
 ## License
 

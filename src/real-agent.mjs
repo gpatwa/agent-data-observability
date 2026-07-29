@@ -35,7 +35,18 @@ whose results actually support your conclusion:
 CITED: q1, q4, q9
 `.trim();
 
-export function runAgent({ question, model = null, tag = 'agent' }) {
+// Only appended in the coordinator condition. Deliberately pushes toward
+// parallel delegation — if independent investigators re-derive each other's
+// aggregates, this is where it shows up.
+const DELEGATE_APPEND = `
+This is a broad investigation. Use the Task tool to delegate independent lines
+of inquiry to subagents, running several in parallel rather than working
+sequentially yourself. Each subagent has the same run_sql tool against the same
+warehouse. Give each one a distinct angle to investigate and have it report
+back what it found.
+`.trim();
+
+export function runAgent({ question, model = null, tag = 'agent', wide = false, subagents = false }) {
   mkdirSync(OUT, { recursive: true });
   const eventsPath = `${OUT}${tag}-events.jsonl`;
   const answerPath = `${OUT}${tag}-answer.txt`;
@@ -53,6 +64,7 @@ export function runAgent({ question, model = null, tag = 'agent' }) {
             TRACE_QUESTION: question,
             AGENT_MODEL: model ?? 'claude-opus-5',
             AGENT_ID: `claude-code-${tag}`,
+            ...(wide ? { WIDE_SCHEMA: '1' } : {}),
           },
         },
       },
@@ -60,11 +72,21 @@ export function runAgent({ question, model = null, tag = 'agent' }) {
   );
   writeFileSync(eventsPath, '');
 
+  const tools = ['mcp__traced-warehouse__run_sql'];
+  // The coordinator condition: allow the agent to spawn parallel subagents,
+  // each of which independently reaches the same warehouse through the same
+  // traced tool. This is the shape the redundancy thesis was written for.
+  // The subagent-spawning tool is named `Agent` in Claude Code, not `Task`.
+  // Getting this wrong does not error — the model simply never delegates, and
+  // the run looks like a valid single-agent trace. Verified against a probe run
+  // that observed two `Agent` tool calls.
+  if (subagents) tools.push('Agent');
+
   const args = [
     '-p', question,
     '--mcp-config', configPath,
-    '--allowedTools', 'mcp__traced-warehouse__run_sql',
-    '--append-system-prompt', SYSTEM_APPEND,
+    '--allowedTools', tools.join(','),
+    '--append-system-prompt', subagents ? `${SYSTEM_APPEND}\n\n${DELEGATE_APPEND}` : SYSTEM_APPEND,
     '--output-format', 'json',
   ];
   if (model) args.push('--model', model);
@@ -127,9 +149,11 @@ if (process.argv[1]?.endsWith('real-agent.mjs')) {
   const tagIdx = process.argv.indexOf('--tag');
   const model = modelIdx > -1 ? process.argv[modelIdx + 1] : null;
   const tag = tagIdx > -1 ? process.argv[tagIdx + 1] : 'agent';
+  const wide = process.argv.includes('--wide');
+  const subagents = process.argv.includes('--subagents');
 
-  console.log(`==> ${tag}: "${question}"${model ? ` [${model}]` : ''}`);
-  const r = await runAgent({ question, model, tag });
+  console.log(`==> ${tag}: "${question}"${model ? ` [${model}]` : ''}${wide ? ' [wide schema]' : ''}${subagents ? ' [subagents]' : ''}`);
+  const r = await runAgent({ question, model, tag, wide, subagents });
   if (!r.ok) process.exit(1);
   console.log(`\n${readFileSync(r.answerPath, 'utf8').trim()}\n`);
   console.log(`==> ${r.queries} queries · claimed ${r.claimed} · grounded ${r.grounded} · uniquely grounded ${r.unique}`);

@@ -65,8 +65,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       description:
         'Run a read-only SQL query against the analytics warehouse (PostgreSQL). ' +
         'Returns up to 50 rows as JSON, plus a query id you can reference later. ' +
-        'Tables: orders(order_id, order_date, region, channel, customer_id, amount), ' +
-        'refunds(refund_id, order_id, refund_date, amount).',
+        // WIDE_SCHEMA hides the schema so the agent must discover which tables
+        // matter — the condition under which schema-probing redundancy could
+        // appear at all.
+        (process.env.WIDE_SCHEMA
+          ? 'The warehouse contains many tables and you do not know the schema. ' +
+            'Use information_schema.tables and information_schema.columns to discover ' +
+            'what exists before querying it.'
+          : 'Tables: orders(order_id, order_date, region, channel, customer_id, amount), ' +
+            'refunds(refund_id, order_id, refund_date, amount).'),
       inputSchema: {
         type: 'object',
         properties: {

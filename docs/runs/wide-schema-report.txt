@@ -1,0 +1,74 @@
+==============================================================================
+TRACE 1ac9e5345a696406   agent=claude-code-wide   model=claude-opus-5
+TASK  "Why did revenue drop in July 2026?"
+SOURCE  17 tagged statements recovered from the Postgres log (nothing in the data path)
+TIME    elapsed scaled 1× (real timestamps)
+==============================================================================
+
+── PLAN TREE (reconstructed from the warehouse log alone) ────────────────
+  [probe ] discover available tables in the warehouse  $0.000
+    [refine] see remaining tables beyond first 50  $0.000
+      [refine] inspect orders table schema for revenue analysis  $0.000
+      ✓ [refine] compare monthly order revenue for May, June, July 2026  $0.015
+          [refine] check date coverage/completeness for June and July to rule out partial month effect  $0.055
+          [refine] break down revenue by channel for June vs July to find where the drop concentrated  $0.015
+          [refine] break down revenue by region for June vs July to find where the drop concentrated  $0.014
+          ✓ [refine] check if the AOV drop is concentrated in a specific region x channel combination  $0.016
+            ✓ [refine] find the exact date the EMEA paid_search AOV drop started  $0.004
+              ✓ [refine] confirm the AOV drop persists through end of July for EMEA paid_search  $0.004
+                  [refine] inspect individual order amounts right before/after the step change to see if it's a uniform scaling factor  $0.002
+                ✓ [refine] check distribution shape of amounts on the anomaly date to see if it looks like a uniform scale-down  $0.001
+                  ✓ [refine] compare amount distribution shape on the day before the anomaly  $0.000
+                [refine] inspect schemas of price_changes, fx_rates, campaigns to look for a cause of the AOV step change  $0.000
+                  [refine] look for a logged event around 2026-07-12 that could explain the AOV step change  $0.000
+              [refine] check payments table schema to cross-validate revenue figures  $0.000
+    [refine] see remaining tables list end         $0.000
+
+── REDUNDANCY ────────────────────────────────────────────────
+  queries issued                  17
+  distinct, exact SQL             17  → 0.0% caught by literal match
+  distinct, AST-normalized        17  → 0.0% caught by normalization
+  aggregate queries               9
+  minimal covering set            4 rollups answer 7/9
+  excluded as unmodellable        8  (schema lookups, joins, CTEs — not servable by a rollup)
+
+  DISTINCT SUB-PLANS              57.1%   █████████████████   (of servable queries)
+  REDUNDANCY                      42.9%   █████████████
+  (BAIR post reports 10–20% distinct sub-plans across agent attempts)
+
+  Synthesized anchors — note these are queries the agent NEVER RAN:
+    [obs. ] covers   3  24 rows, 603ms
+             select channel, date_trunc('month',order_date), region, avg(amount), count(*), sum(amount) f
+    [SYNTH] covers   2  732 rows, 374ms
+             select channel, order_date, region, count(*), max(amount), max(order_date), min(amount), min
+    [obs. ] covers   1  2 rows, 417ms
+             select date_trunc('month',order_date), avg(amount), count(*), sum(amount) from orders where 
+    [obs. ] covers   1  61 rows, 167ms
+             select order_date, avg(amount), count(*), sum(amount) from orders where channel = 'paid_sear
+
+── SPECULATION WASTE (requires the agent-side half of the trace) ─────────
+  results that reached the answer  6/17
+  cost of results that did not     $0.087 of $0.127   (68.3%)
+  largest dead-end branch          "refunds spiked" — 0 queries, $0.000
+
+── COST ATTRIBUTION (Snowflake XS, $3/credit, 60s min, 60s auto-suspend) ──
+  wall-clock span of the task      93s
+  warehouse resumes                1
+  billed warehouse-seconds         153s   $0.127
+  productive (query exec) seconds  4.5s   $0.004
+  idle + cold-start tax            148s   $0.123   (97.0% of bill)
+
+  → COST PER RESOLVED TASK         $0.127
+    at 5k agent tasks/day           $635.93/day   $19077.82/mo
+
+── PHASE-1 RECOMMENDATIONS (advice only — no query rewriting, no interception) ─
+  1. Batch probes into one warehouse window
+     think-time between probes is what pays the idle tax
+     $0.127 → $0.054 per task   (2.4×)
+  2. Materialize 4 rollups to serve 7 of 9 aggregate queries
+     measured anchor exec: 1562ms total vs 4532ms of probe execution
+     → 65.5% less compute for the same answers
+  3. 11 of 17 queries never informed the answer ($0.087/task).
+     Of those, the "refunds spiked" hypothesis is a fully dead branch (0 queries)
+     — the rest are probes whose findings the rollups would have surfaced in one shot.
+
