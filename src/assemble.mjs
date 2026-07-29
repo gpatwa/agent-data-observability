@@ -9,7 +9,13 @@ import { readFileSync } from 'node:fs';
 import pg from 'pg';
 import { parseContext } from './context.mjs';
 import { exactHash, astHash, extractShape, coveringSet } from './fingerprint.mjs';
-import { DILATION, PG } from './config.mjs';
+import { PG } from './config.mjs';
+
+// Time dilation applies ONLY to the simulated agent, which compresses its
+// think-time by this factor. A real agent's log timestamps are already real —
+// passing a dilation there would multiply its idle gaps into fictional ones.
+// Default 1 (no scaling); the demo script passes 100 for the simulator.
+const DILATION = Number(process.argv[4] ?? 1);
 
 // --- Warehouse billing model (Snowflake XS, Standard edition) --------------
 const CREDITS_PER_HOUR = 1;      // XS warehouse
@@ -193,6 +199,7 @@ async function main() {
   console.log(`TRACE ${spans[0].trace_id}   agent=${spans[0].agent_id}   model=${spans[0].model_id}`);
   console.log(`TASK  "Why did revenue drop in July 2026?"`);
   console.log(`SOURCE  ${total} tagged statements recovered from the Postgres log (nothing in the data path)`);
+  console.log(`TIME    elapsed scaled ${DILATION}× ${DILATION === 1 ? '(real timestamps)' : '(simulated think-time, decompressed)'}`);
   console.log('='.repeat(78));
 
   // --- plan tree ---

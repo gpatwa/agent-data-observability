@@ -17,6 +17,8 @@
     "sqlcommenter"
   ],
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "pg": "^8.16.3"
   }
 }

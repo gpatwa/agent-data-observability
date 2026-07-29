@@ -52,4 +52,5 @@ echo "==> running simulated agent"
 node "$ROOT/src/agent-sim.mjs"
 
 echo
-node "$ROOT/src/assemble.mjs" "$LOG" "$ROOT/out/agent-events.jsonl"
+# 100 = the simulator's think-time compression factor (see src/config.mjs).
+node "$ROOT/src/assemble.mjs" "$LOG" "$ROOT/out/agent-events.jsonl" 100

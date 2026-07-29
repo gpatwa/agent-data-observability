@@ -42,35 +42,38 @@ This seeds 4.4M rows, runs a simulated analyst agent, and prints the reconstruct
 
 ---
 
-## Results from the included workload
+## Results
 
-A simulated analyst agent answering *"why did revenue drop in July 2026?"* against 4.39M rows:
+Two agents answered the same question — *"why did revenue drop in July 2026?"* — against the same 4.39M rows, traced identically.
 
-| Metric | Value | Stable across runs? |
+| | Simulated agent | **Real agent** (Claude Opus 5 via Claude Code) |
 |---|---|---|
-| Queries issued for one question | 93 | yes |
-| Distinct sub-plans after subsumption | **9.7%** (9 anchors) | yes |
-| Results that reached the answer | 4 / 93 | yes |
-| Bill that was idle warehouse time | **~99%** | yes |
-| Cost per resolved task | $0.36 – $0.46 | varies with load |
+| Queries issued | 93 | **7** |
+| Distinct sub-plans after subsumption | 9.7% | **57.1%** |
+| Results that reached the answer | 4 / 93 | **7 / 7** |
+| Bill that was idle warehouse time | ~99% | **96.7%** |
+| Cost per resolved task | $0.36–$0.46 | **$0.073** |
+| Saving from batching advice alone | 7–9× | **1.4×** |
 
-### Three findings
+**The real agent largely refutes the simulated one.** It found the planted cause — a per-order value collapse confined to EMEA × paid_search starting 2026-07-12 — in seven queries, wrote its own `GROUP BY` rollups instead of fanning out per-day probes, and cited every result it retrieved. The speculation pattern the simulator models, and which motivates most of the optimization thesis, did not appear.
 
-**1. Exact-match caching is worthless here.**
+Reproduce with `./scripts/demo.sh` (simulated) and `node src/real-agent.mjs` (real, requires an authenticated `claude` CLI). Raw output from the real run: [`docs/runs/real-agent-report.txt`](docs/runs/real-agent-report.txt).
 
-| Fingerprint tier | Catches | Hit rate |
-|---|---|---|
-| `exact` | literal retries | 1.1% |
-| `ast_hash` | alias renames, predicate reordering, whitespace | 2.2% |
-| `subsumption` | probes answerable from a coarser result | **90.3%** |
+### What held up, and what didn't
 
-Agents rarely repeat a query exactly — they *probe around a region*. Semantic caching as shipped by today's LLM gateways operates on prompts and would catch essentially none of this. The prize is in view-matching and multi-query optimization.
+**Did not reproduce — speculation waste.** The simulator spent 85% of its bill on queries whose results never reached the answer. The real agent's figure was **zero**. A capable model with a well-described tool does not appear to flail the way the fan-out model assumes.
 
-**2. The useful anchors are queries nobody ran.** An agent that fires 31 per-day probes never issues the `GROUP BY order_date` rollup that would answer all 31. Picking anchors from *observed* queries finds almost nothing (68 anchors for 89 queries — useless). Candidates have to be **synthesized** by lifting equality filters up into the grouping. After that, 9 anchors cover 85 of 89. The anchors are then *executed*, not estimated: roughly 650–770ms of anchor time against 2.7–4.1s of probe execution, or **72–84% less compute** for the same answers.
+**Did not reproduce at strength — redundancy.** Subsumption caught 90.3% of the simulated workload and **42.9%** of the real one. More importantly, the real agent's covering anchors were *observed* queries, not synthesized ones — it had already written the rollups a materialization recommender would have suggested. The synthesized-candidate insight, which is the strongest technical idea here, had almost nothing to do on a real trace. Treat the 42.9% as soft besides: the shape extractor mishandles the positional `GROUP BY 1, 2` and `date_trunc()` expressions real agents write (visible in the anchor SQL in the saved report), so the real-trace covering set is less trustworthy than the simulated one.
 
-**3. You are paying a warehouse to watch an LLM think.** Agent think-time between probes is only a few seconds, so a 60-second auto-suspend never fires. The warehouse stays hot for the entire 6–8 minute task while doing 3–4 seconds of work. This yields a **7–9× saving from scheduling advice alone** — no query rewriting, no interception.
+**Reproduced, directionally — the idle tax.** 96.7% of the modelled bill was warehouse time spent waiting on the model rather than executing SQL. That survives, and it is the finding that does not depend on agents being wasteful — it only requires them to be *slow between queries*, which is intrinsic. But the magnitude collapses with the query count: batching saves 1.4× on the real trace, not 7–9×, and the whole task costs $0.073.
 
-A fuller write-up with the reconstructed plan tree is in [`docs/design-note.html`](docs/design-note.html).
+**Still true regardless: exact-match caching is worthless here.** Literal SQL matching caught 0% of the real workload and 1.1% of the simulated one; AST normalization added ~1–2%. Whatever value exists in this layer is in view-matching, not in the prompt-level semantic caching today's LLM gateways ship.
+
+### What that means
+
+The observability primitive stands — the trace reconstructed cleanly from the Postgres log for both agents, and cost-per-resolved-task is measurable where it wasn't before. The *optimization* thesis built on top of it is much weaker than the simulation suggested: on this evidence, the money is in scheduling and warehouse economics, not in deduplicating agent speculation.
+
+A fuller write-up with the reconstructed plan tree is in [`docs/design-note.html`](docs/design-note.html) (written against the simulated run — read this section first).
 
 ---
 
@@ -78,7 +81,9 @@ A fuller write-up with the reconstructed plan tree is in [`docs/design-note.html
 
 Read this section before citing any number above.
 
-- **The agent is simulated, not a real LLM loop.** The speculation *shape* — probe fan-out, cosmetic retries, per-partition scans, a dead-end hypothesis — is modelled on the patterns described in [Intelligence is Free, Now What?](https://bair.berkeley.edu/blog/2026/07/07/intelligence-is-free-now-what/) (BAIR, July 2026) and the UC Berkeley EPIC Data Lab's [agent-first data systems](https://arxiv.org/pdf/2509.00997) work. That the 9.7% distinct-sub-plan figure lands inside their reported 10–20% range is a consistency check, **not** independent confirmation. Replacing the simulator with a real agent loop is the top open item.
+- **One real run, one task, one harness.** The real-agent result is n=1: a single question, with a single planted single-cause answer, run through Claude Code with Claude Opus 5 and one well-described tool. A vaguer question, a weaker model, a worse tool description, or a harness that encourages parallel fan-out could all produce a very different shape. Do not read "agents don't speculate" into it — read "this agent, on this task, didn't."
+- **The simulator models a naive agent, and says so.** Its speculation *shape* — probe fan-out, cosmetic retries, per-partition scans, a dead-end hypothesis — is modelled on the patterns described in [Intelligence is Free, Now What?](https://bair.berkeley.edu/blog/2026/07/07/intelligence-is-free-now-what/) (BAIR, July 2026) and the UC Berkeley EPIC Data Lab's [agent-first data systems](https://arxiv.org/pdf/2509.00997) work. Its 9.7% distinct-sub-plan figure landing inside their reported 10–20% range was a consistency check, never independent confirmation — and the real run above did not reproduce it. The simulator is kept because it is a deterministic fixture for the fingerprinting code, not because it is evidence.
+- **Lineage is recorded differently in the two runs.** The simulator's plan tree is assigned by the harness. The real agent's is *self-declared* — the `run_sql` tool asks the model for `intent` and `follows_from`, so the tree is the agent's own account of its reasoning and inherits whatever inaccuracy that carries.
 - **Fingerprinting uses a tokenizer, not a SQL parser.** Tiers 2 and 3 use regex normalization and a structured extractor for the common aggregate shape. That's an appropriate shortcut for sizing a prize; a production version needs sqlglot or Calcite behind the same interface, and the hit rates will move.
 - **Cost figures model Snowflake but run on Postgres.** Billing is computed under Snowflake XS rules ($3/credit, 60s minimum, 60s auto-suspend) applied to real Postgres execution times. Treat the *ratios* as the finding, not the absolute dollars.
 - **Agent think-time is compressed 100× in the simulation** and scaled back up before billing. Query execution time is real and never scaled. See `src/config.mjs`.
@@ -92,14 +97,17 @@ Read this section before citing any number above.
 | `src/context.mjs` | Trace context; sqlcommenter-style serialization and parsing |
 | `src/tracedb.mjs` | The middleware. Out-of-path in this version; the seam for in-path mode |
 | `src/fingerprint.mjs` | Three-tier fingerprinting, subsumption, candidate synthesis, greedy cover |
-| `src/agent-sim.mjs` | Simulated analyst agent producing a realistic speculation tree |
+| `src/agent-sim.mjs` | Simulated analyst agent — a deterministic fixture, not evidence |
+| `src/real-agent.mjs` | Drives a real Claude Code agent headlessly against the traced warehouse |
+| `src/mcp-db-server.mjs` | MCP server exposing `run_sql` to a real agent; injects trace context |
 | `src/assemble.mjs` | Log parsing, tree reconstruction, billing model, report |
 | `seed.sql` | 4.4M-row demo dataset with a planted July revenue drop |
 
 ## Open items
 
-- [ ] Replace the simulator with a real LLM agent loop against the same schema
-- [ ] Swap regex normalization for a real SQL parser (sqlglot / Calcite)
+- [x] ~~Replace the simulator with a real LLM agent loop~~ — done, and it changed the conclusions
+- [ ] More real runs: vaguer questions, multi-cause data, weaker models, parallel-fan-out harnesses. n=1 is not a result
+- [ ] Swap regex normalization for a real SQL parser (sqlglot / Calcite) — required before any covering-set number on real agent SQL is trustworthy
 - [ ] Snowflake `QUERY_TAG` and BigQuery label adapters alongside Postgres comments
 - [ ] `used_downstream` hooks for real agent frameworks
 - [ ] Cost of the telemetry itself — a system that reduces a data bill shouldn't create one

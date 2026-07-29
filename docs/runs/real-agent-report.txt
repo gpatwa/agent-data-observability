@@ -1,0 +1,63 @@
+==============================================================================
+TRACE 673e90a1f8f1b899   agent=claude-code-analyst   model=claude-opus-5
+TASK  "Why did revenue drop in July 2026?"
+SOURCE  7 tagged statements recovered from the Postgres log (nothing in the data path)
+TIME    elapsed scaled 1× (real timestamps)
+==============================================================================
+
+── PLAN TREE (reconstructed from the warehouse log alone) ────────────────
+✓ [probe ] Compare gross order revenue between June and July 2026  $0.011
+  ✓ [refine] Confirm average order value trend between June and July  $0.010
+  ✓ [refine] Check if refunds spiked in July, reducing net revenue  $0.000
+  ✓ [refine] Break down revenue and AOV by region for June vs July  $0.026
+  ✓ [refine] Break down revenue and AOV by channel for June vs July  $0.012
+    ✓ [refine] Check if the AOV drop is isolated to EMEA+paid_search intersection or spread across EMEA and paid_search independently  $0.009
+      ✓ [refine] Find exact day the EMEA paid_search AOV collapsed  $0.005
+
+── REDUNDANCY ────────────────────────────────────────────────
+  queries issued                  7
+  distinct, exact SQL             7  → 0.0% caught by literal match
+  distinct, AST-normalized        7  → 0.0% caught by normalization
+  aggregate queries               7
+  minimal covering set            4 rollups answer 7/7
+
+  DISTINCT SUB-PLANS              57.1%   █████████████████
+  REDUNDANCY                      42.9%   █████████████
+  (BAIR post reports 10–20% distinct sub-plans across agent attempts)
+
+  Synthesized anchors — note these are queries the agent NEVER RAN:
+    [obs. ] covers   4  1 rows, 167ms
+             select 1, 2, count(*), count(*), sum(amount), sum(amount) from orders where order_date < '20
+    [obs. ] covers   1  1 rows, 2ms
+             select 1, count(*), sum(amount) from refunds where refund_date < '2026-08-01' and refund_dat
+    [obs. ] covers   1  1 rows, 87ms
+             select 1, 2, 3, count(*), count(*), sum(amount), sum(amount) from orders where (region = 'em
+    [obs. ] covers   1  0 rows, 2ms
+             select 1, count(*), count(*), sum(amount), sum(amount) from orders where channel = 'paid_sea
+
+── SPECULATION WASTE (requires the agent-side half of the trace) ─────────
+  results that reached the answer  7/7
+  cost of results that did not     $0.000 of $0.073   (0.0%)
+  largest dead-end branch          "refunds spiked" — 0 queries, $0.000
+
+── COST ATTRIBUTION (Snowflake XS, $3/credit, 60s min, 60s auto-suspend) ──
+  wall-clock span of the task      27s
+  warehouse resumes                1
+  billed warehouse-seconds         87s   $0.073
+  productive (query exec) seconds  2.9s   $0.002
+  idle + cold-start tax            84s   $0.070   (96.7% of bill)
+
+  → COST PER RESOLVED TASK         $0.073
+    at 5k agent tasks/day           $363.58/day   $10907.35/mo
+
+── PHASE-1 RECOMMENDATIONS (advice only — no query rewriting, no interception) ─
+  1. Batch probes into one warehouse window
+     think-time between probes is what pays the idle tax
+     $0.073 → $0.052 per task   (1.4×)
+  2. Materialize 4 rollups to serve 7 of 7 aggregate queries
+     measured anchor exec: 258ms total vs 2922ms of probe execution
+     → 91.2% less compute for the same answers
+  3. 0 of 7 queries never informed the answer ($0.000/task).
+     Of those, the "refunds spiked" hypothesis is a fully dead branch (0 queries)
+     — the rest are probes whose findings the rollups would have surfaced in one shot.
+
