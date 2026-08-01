@@ -6,7 +6,8 @@
   "license": "MIT",
   "scripts": {
     "demo": "./scripts/demo.sh",
-    "test": "node --test \"test/**/*.test.mjs\""
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "build:pages": "node scripts/build-pages.mjs"
   },
   "keywords": [
     "ai-agents",

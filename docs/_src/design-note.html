@@ -1,16 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agent→Data Observability — Design &amp; Prototype Results</title>
-<meta name="description" content="Six conditions testing whether AI agents flood data warehouses with redundant queries. Only the simulated one did.">
-<meta property="og:title" content="Agent→Data Observability — Design &amp; Prototype Results">
-<meta property="og:type" content="article">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%89</text></svg>">
-<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}</style>
-</head>
-<body>
 <style>
   :root {
     --ground:#F2F5F5; --surface:#FFFFFF; --surface-2:#E7EDED; --sunken:#1A2426;
@@ -125,11 +113,11 @@
   <header class="mast">
     <div class="kicker">
       <span class="label">Design note</span>
-      <span class="label" style="color:var(--tax)">Final &#8212; thesis not supported</span>
+      <span class="label" style="color:var(--tax)">Final — thesis not supported</span>
       <span class="label">2026-07-29</span>
     </div>
     <h1>I built the agent-query optimization thesis,<br>measured it, and it isn't there</h1>
-    <p class="dek">Agents were supposed to flood warehouses with near-duplicate speculative queries &#8212; 10&#8211;20% distinct sub-plans, a large deduplication prize. I built the trace primitive to measure that, then measured it against real agents. Four versions of the claim, four failures. The tooling is real and useful; the prize is not.</p>
+    <p class="dek">Agents were supposed to flood warehouses with near-duplicate speculative queries — 10–20% distinct sub-plans, a large deduplication prize. I built the trace primitive to measure that, then measured it against real agents. Four versions of the claim, four failures. The tooling is real and useful; the prize is not.</p>
   </header>
 
   <!-- ============ HEADLINE ============ -->
@@ -140,15 +128,15 @@
         <thead><tr><th>&nbsp;</th><th class="num">Simulated naive</th><th class="num">Real (Opus 5)</th><th class="num">Real (Haiku 4.5)</th><th class="num">8 concurrent</th></tr></thead>
         <tbody>
           <tr><td>Queries for one question</td><td class="num">93</td><td class="hi">6</td><td class="hi">5</td><td class="num">41 total</td></tr>
-          <tr><td>Distinct sub-plans</td><td class="num">9.7%</td><td class="hi">57%</td><td class="hi">60%</td><td class="num">&#8212;</td></tr>
+          <tr><td>Distinct sub-plans</td><td class="num">9.7%</td><td class="hi">57%</td><td class="hi">60%</td><td class="num">—</td></tr>
           <tr><td>Results reaching the answer</td><td class="num">4 / 93</td><td class="hi">6 / 6</td><td class="num">4 / 5</td><td class="hi">34 / 41</td></tr>
-          <tr><td>Idle share of the bill</td><td class="num">~99%</td><td class="num">96.7%</td><td class="num">&#8212;</td><td class="hi">23.7%</td></tr>
-          <tr><td>Cost per task</td><td class="num">$0.36&#8211;0.46</td><td class="num">$0.073</td><td class="num">$0.073</td><td class="num">$0.116</td></tr>
+          <tr><td>Idle share of the bill</td><td class="num">~99%</td><td class="num">96.7%</td><td class="num">—</td><td class="hi">23.7%</td></tr>
+          <tr><td>Cost per task</td><td class="num">$0.36–0.46</td><td class="num">$0.073</td><td class="num">$0.073</td><td class="num">$0.116</td></tr>
         </tbody>
       </table>
     </div>
     <div class="col">
-      <p><strong>Cross-session redundancy: 13.0%.</strong> Eight agents asking deliberately overlapping questions of the same two tables shared enough structure to eliminate 3 of 23 per-session rollups. Best-case materialization was 20 anchors serving 25 queries &#8212; a 20% reduction, against the ~90% the simulation promised.</p>
+      <p><strong>Cross-session redundancy: 13.0%.</strong> Eight agents asking deliberately overlapping questions of the same two tables shared enough structure to eliminate 3 of 23 per-session rollups. Best-case materialization was 20 anchors serving 25 queries — a 20% reduction, against the ~90% the simulation promised.</p>
     </div>
   </section>
 
@@ -158,11 +146,11 @@
     <div class="verdicts">
       <div class="verdict">
         <div class="vhead"><span class="vname">Speculation waste</span><span class="chip died">refuted</span></div>
-        <p class="vbody">The simulated agent used 4 of 93 results. Real agents used <strong>34 of 41</strong> across eight sessions &#8212; and that is verified against the answer text, not self-reported. One session of eight showed genuine waste (3 of 9 grounded). It is the exception, not the pattern.</p>
+        <p class="vbody">The simulated agent used 4 of 93 results. Real agents used <strong>34 of 41</strong> across eight sessions — and that is verified against the answer text, not self-reported. One session of eight showed genuine waste (3 of 9 grounded). It is the exception, not the pattern.</p>
       </div>
       <div class="verdict">
         <div class="vhead"><span class="vname">Cross-session sharing</span><span class="chip died">13%, too small</span></div>
-        <p class="vbody">The strongest reframe after the single-agent result: no agent need be wasteful, only for different people to ask related questions of the same tables. Deliberately overlapping questions, one warehouse, eight agents &#8212; <strong>13%</strong>. Materialization still helps, but that is ordinary warehouse optimization, not an agent-specific prize.</p>
+        <p class="vbody">The strongest reframe after the single-agent result: no agent need be wasteful, only for different people to ask related questions of the same tables. Deliberately overlapping questions, one warehouse, eight agents — <strong>13%</strong>. Materialization still helps, but that is ordinary warehouse optimization, not an agent-specific prize.</p>
       </div>
       <div class="verdict">
         <div class="vhead"><span class="vname">Weak models fan out</span><span class="chip died">refuted</span></div>
@@ -170,7 +158,7 @@
       </div>
       <div class="verdict">
         <div class="vhead"><span class="vname">The idle tax</span><span class="chip died">artifact of n=1</span></div>
-        <p class="vbody">96.7% of a lone agent's bill was warehouse time spent waiting on the model &#8212; I published that as the one robust finding. With <strong>8 concurrent agents sharing one warehouse, idle fell to 23.7%</strong>: 851 of 1116 billed seconds were productive. Their think-time gaps interleave. The measurement was right and the conclusion was wrong.</p>
+        <p class="vbody">96.7% of a lone agent's bill was warehouse time spent waiting on the model — I published that as the one robust finding. With <strong>8 concurrent agents sharing one warehouse, idle fell to 23.7%</strong>: 851 of 1116 billed seconds were productive. Their think-time gaps interleave. The measurement was right and the conclusion was wrong.</p>
       </div>
     </div>
   </section>
@@ -180,24 +168,24 @@
     <h2>The finding that reversed itself</h2>
     <div class="duo">
       <div class="panel">
-        <span class="label">One agent &#183; dedicated warehouse</span>
+        <span class="label">One agent · dedicated warehouse</span>
         <div class="meter"><span class="used" style="width:3.3%"></span><span class="idle"></span></div>
         <div class="meter-key">
           <span class="swatch"><i style="background:var(--measure)"></i>2.9s productive</span>
-          <span class="swatch"><i style="background:var(--tax)"></i>84s idle &#8212; 96.7%</span>
+          <span class="swatch"><i style="background:var(--tax)"></i>84s idle — 96.7%</span>
         </div>
       </div>
       <div class="panel">
-        <span class="label" style="color:var(--measure)">Eight agents &#183; shared warehouse</span>
+        <span class="label" style="color:var(--measure)">Eight agents · shared warehouse</span>
         <div class="meter"><span class="used" style="width:76.3%"></span><span class="idle"></span></div>
         <div class="meter-key">
           <span class="swatch"><i style="background:var(--measure)"></i>851s productive</span>
-          <span class="swatch"><i style="background:var(--tax)"></i>265s idle &#8212; 23.7%</span>
+          <span class="swatch"><i style="background:var(--tax)"></i>265s idle — 23.7%</span>
         </div>
       </div>
     </div>
     <div class="col">
-      <p>"You are paying a warehouse to watch an LLM think" is true of one agent on its own warehouse, and it is the kind of finding that is easy to publish and hard to un-publish. It disappears the moment agents share infrastructure &#8212; which is the only way anyone would actually deploy them. <strong>Measuring a single instance of a concurrent system produced exactly the wrong conclusion.</strong></p>
+      <p>"You are paying a warehouse to watch an LLM think" is true of one agent on its own warehouse, and it is the kind of finding that is easy to publish and hard to un-publish. It disappears the moment agents share infrastructure — which is the only way anyone would actually deploy them. <strong>Measuring a single instance of a concurrent system produced exactly the wrong conclusion.</strong></p>
     </div>
   </section>
 
@@ -206,18 +194,18 @@
     <h2>What survived: the trace primitive</h2>
     <div class="transform">
       <span class="label">What Postgres wrote to its own log</span>
-      <div class="logline"><span class="ts">2026-07-28 23:41:07.882 PDT [16233] LOG:  statement:</span> <span class="tag">/*agenttrace:t=673e90a1&#8230;,s=a17f2b,p=6c9e04,a=claude-code-analyst,c=refine,i=revenue%20by%20region*/</span>
+      <div class="logline"><span class="ts">2026-07-28 23:41:07.882 PDT [16233] LOG:  statement:</span> <span class="tag">/*agenttrace:t=673e90a1…,s=a17f2b,p=6c9e04,a=claude-code-analyst,c=refine,i=revenue%20by%20region*/</span>
     SELECT date_trunc('month', order_date), region, sum(amount) FROM orders GROUP BY 1, 2</div>
     </div>
     <div class="col stack-sm">
-      <p>Query lineage, per-agent cost attribution, and verified answer-grounding all reconstruct from a log the warehouse already writes, with nothing in the data path. <strong>Cost per resolved task</strong> &#8212; the number that decides whether an agent deployment survives budget review &#8212; becomes measurable where it wasn't before.</p>
+      <p>Query lineage, per-agent cost attribution, and verified answer-grounding all reconstruct from a log the warehouse already writes, with nothing in the data path. <strong>Cost per resolved task</strong> — the number that decides whether an agent deployment survives budget review — becomes measurable where it wasn't before.</p>
       <p>That is an observability tool. It is not an optimization platform, and the optimization code in the repo is now labelled as measured-and-small rather than built out further.</p>
     </div>
 
     <h3>Verifying citations rather than trusting them</h3>
     <div class="col">
-      <p>Whether a query's result reached the answer is the field the entire waste analysis rests on &#8212; and the obvious implementation, asking the agent, is the agent grading its own homework. So values from each result set are matched against the final answer with numeric tolerance for the rounding models do in prose (<code>$319.9M</code> for <code>319875432.11</code>).</p>
-      <p>It catches errors in both directions. Haiku claimed three queries and was grounded in four &#8212; one it used but never claimed. Opus claimed six, all six grounded, five by a value no other query produced.</p>
+      <p>Whether a query's result reached the answer is the field the entire waste analysis rests on — and the obvious implementation, asking the agent, is the agent grading its own homework. So values from each result set are matched against the final answer with numeric tolerance for the rounding models do in prose (<code>$319.9M</code> for <code>319875432.11</code>).</p>
+      <p>It catches errors in both directions. Haiku claimed three queries and was grounded in four — one it used but never claimed. Opus claimed six, all six grounded, five by a value no other query produced.</p>
     </div>
   </section>
 
@@ -229,24 +217,24 @@
     </div>
     <div class="bugs">
       <div class="bug">
-        <span class="bt">Applied the simulator's 100&#215; time dilation to a real trace</span>
+        <span class="bt">Applied the simulator's 100× time dilation to a real trace</span>
         <span class="bd">The simulator compresses think-time; the scaling factor was applied unconditionally to timestamps that were already real.</span>
-        <span class="bdelta">reported 2708s and 7 warehouse resumes &#8594; actually 27s and 1</span>
+        <span class="bdelta">reported 2708s and 7 warehouse resumes → actually 27s and 1</span>
       </div>
       <div class="bug">
         <span class="bt">Substring-matched numeric values</span>
-        <span class="bd">Postgres returns <code>numeric</code> as a string, so result values were compared as text against prose. <code>"69.33124&#8230;"</code> never appears in an answer that says <code>$69.33</code>.</span>
-        <span class="bdelta">grounding under-reported as 3/6 &#8594; actually 6/6</span>
+        <span class="bd">Postgres returns <code>numeric</code> as a string, so result values were compared as text against prose. <code>"69.33124…"</code> never appears in an answer that says <code>$69.33</code>.</span>
+        <span class="bdelta">grounding under-reported as 3/6 → actually 6/6</span>
       </div>
       <div class="bug">
         <span class="bt">Regex-"parsed" SQL</span>
-        <span class="bd">The extractor could not read <code>GROUP BY 1, 2</code>, <code>date_trunc()</code>, casts or aliases &#8212; precisely what real agents write &#8212; and emitted dimensions literally named <code>"1"</code> and <code>"2"</code>.</span>
+        <span class="bd">The extractor could not read <code>GROUP BY 1, 2</code>, <code>date_trunc()</code>, casts or aliases — precisely what real agents write — and emitted dimensions literally named <code>"1"</code> and <code>"2"</code>.</span>
         <span class="bdelta">every covering-set number on real SQL was noise until it was replaced</span>
       </div>
       <div class="bug">
         <span class="bt">Divided by the wrong denominator</span>
         <span class="bd">Counted queries the parser <em>couldn't model</em> as successfully deduplicated.</span>
-        <span class="bdelta">reported 51% dedup &#8594; against servable queries, 20%</span>
+        <span class="bdelta">reported 51% dedup → against servable queries, 20%</span>
       </div>
       <div class="bug">
         <span class="bt">Line-anchored the citation regex</span>
@@ -255,7 +243,7 @@
       </div>
     </div>
     <div class="callout col">
-      <p>The parser replacement is the one that matters structurally. Its successor declines queries it cannot model &#8212; joins, CTEs, <code>OR</code>, <code>HAVING</code> &#8212; rather than guessing at them: <strong>12 of 41 real queries excluded</strong>. Excluding lowers reported coverage; mis-parsing inflates it. Coverage figures here are lower bounds, deliberately.</p>
+      <p>The parser replacement is the one that matters structurally. Its successor declines queries it cannot model — joins, CTEs, <code>OR</code>, <code>HAVING</code> — rather than guessing at them: <strong>12 of 41 real queries excluded</strong>. Excluding lowers reported coverage; mis-parsing inflates it. Coverage figures here are lower bounds, deliberately.</p>
     </div>
   </section>
 
@@ -264,8 +252,8 @@
     <h2>What would still change my mind</h2>
     <div class="col">
       <ul>
-        <li><strong>A multi-agent coordinator</strong> spawning parallel subagents over one warehouse. This is the redundancy thesis's best remaining home and it is untested &#8212; concurrent investigators re-deriving each other's context is a different shape from eight independent sessions.</li>
-        <li><strong>A wide schema</strong> &#8212; 100+ tables, where the agent must search for the right table before it can query it. Tool-surface confusion is where agents plausibly flail; two clean tables tests nothing.</li>
+        <li><strong>A multi-agent coordinator</strong> spawning parallel subagents over one warehouse. This is the redundancy thesis's best remaining home and it is untested — concurrent investigators re-deriving each other's context is a different shape from eight independent sessions.</li>
+        <li><strong>A wide schema</strong> — 100+ tables, where the agent must search for the right table before it can query it. Tool-surface confusion is where agents plausibly flail; two clean tables tests nothing.</li>
         <li><strong>Ambiguous, multi-cause questions.</strong> This dataset has one planted cause and a clean answer.</li>
       </ul>
       <p>All three are a config change away in this harness, which is the actual deliverable. The negative result took eight agents and about six dollars of inference to produce; reviving the thesis would cost about the same.</p>
@@ -276,8 +264,6 @@
   </section>
 
   <hr class="rule">
-  <p class="foot col">Postgres 18 with <code>log_statement=all</code>, 4.39M rows. Real agents are Claude Opus 5 and Haiku 4.5 driven headlessly through Claude Code, warehouse exposed as a single <code>run_sql</code> MCP tool; lineage self-declared via <code>intent</code> and <code>follows_from</code>. Query shapes parsed to AST, with unmodellable queries excluded rather than guessed. Warehouse pricing modelled on Snowflake XS ($3/credit, 60s minimum, 60s auto-suspend) applied to real Postgres execution times &#8212; the ratios are the finding, not the dollars. Simulated think-time compressed 100&#215; and scaled back before billing; real timestamps used as-is. 31 unit tests, weighted toward negative subsumption cases. Source, raw logs and per-run reports: <a href="https://github.com/gpatwa/agent-data-observability">github.com/gpatwa/agent-data-observability</a>.</p>
+  <p class="foot col">Postgres 18 with <code>log_statement=all</code>, 4.39M rows. Real agents are Claude Opus 5 and Haiku 4.5 driven headlessly through Claude Code, warehouse exposed as a single <code>run_sql</code> MCP tool; lineage self-declared via <code>intent</code> and <code>follows_from</code>. Query shapes parsed to AST, with unmodellable queries excluded rather than guessed. Warehouse pricing modelled on Snowflake XS ($3/credit, 60s minimum, 60s auto-suspend) applied to real Postgres execution times — the ratios are the finding, not the dollars. Simulated think-time compressed 100× and scaled back before billing; real timestamps used as-is. 31 unit tests, weighted toward negative subsumption cases. Source, raw logs and per-run reports: <a href="https://github.com/gpatwa/agent-data-observability">github.com/gpatwa/agent-data-observability</a>.</p>
 
 </div>
-</body>
-</html>

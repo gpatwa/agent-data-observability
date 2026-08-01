@@ -1,16 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agents don't flood your warehouse &#8212; six conditions, measured</title>
-<meta name="description" content="Six conditions testing whether AI agents flood data warehouses with redundant queries. Only the simulated one did.">
-<meta property="og:title" content="Agents don't flood your warehouse - six conditions, measured">
-<meta property="og:type" content="article">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%89</text></svg>">
-<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}</style>
-</head>
-<body>
 <style>
   /* Deliberately single-theme: this page commits to one dark visual world &#8212;
      an instrument readout &#8212; rather than adapting to the viewer's preference.
@@ -116,7 +104,7 @@
     .bandlabel { display:none; }
     .rname { text-align:left; }
     /* Stacked layout: anchor the value to the track's right edge rather than
-       trailing the bar &#8212; a 0.6% bar is 3px wide and cannot host a label. */
+       trailing the bar — a 0.6% bar is 3px wide and cannot host a label. */
     .track { margin-top:1.1rem; }
     .val { left:auto; right:0; top:-.95rem; transform:none; }
     .bar { min-width:3px; }
@@ -326,5 +314,3 @@ node src/cross-session.mjs --concurrency 4       <span class="ts"># 8 agents at 
   <p class="foot col">Postgres 18 with <code>log_statement=all</code>, 4.39M rows across 2 tables (122 in the wide condition). Real agents are Claude Opus 5 and Haiku 4.5 driven headlessly through Claude Code, with the warehouse exposed as a single <code>run_sql</code> MCP tool; query lineage is self-declared by the model. Query shapes parsed to AST; unmodellable queries excluded rather than guessed. 31 unit tests, weighted toward negative subsumption cases. Chart palette validated for colour-vision deficiency in both light and dark modes.</p>
 
 </div>
-</body>
-</html>
