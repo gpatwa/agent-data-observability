@@ -115,6 +115,19 @@ Every one of these moved a headline number, and three of them moved it in the fl
 
 ---
 
+## Not production software
+
+This is a measurement harness. It is **not** ready to point at a production warehouse, and the gaps are structural rather than polish:
+
+- **Postgres only.** Snowflake pricing is *modelled*, not measured. No `QUERY_TAG` / BigQuery label adapters.
+- **The server is the database, not a wrapper.** It holds one `pg.Client` with a hardcoded connection and serialises every agent through it. A real deployment must wrap the warehouse client you already have.
+- **Result values are written to disk in plaintext** (`out/*-events.jsonl`) for the grounding check. That is warehouse data in a log file — a data-exfiltration surface and a compliance problem anywhere real.
+- **Only ~1 in 7 realistic analytics queries can be modelled at all.** Joins, CTEs, subqueries, `OR`, `HAVING` and window functions are all declined. Real analytics SQL is mostly joins, so the covering-set analysis would say almost nothing about a production workload.
+- **No authentication, multi-tenancy, quotas, or retention.** Trace context is an unauthenticated SQL comment — an agent can forge its own `intent` and `follows_from`, so this cannot underpin chargeback.
+- **Events are JSONL on local disk** and log parsing reads whole files into memory.
+
+The read-only guard was also genuinely broken until recently — it pattern-matched the start of the string, so `select 1; drop table x` passed and the DROP executed. It now parses and requires exactly one SELECT, and the session sets `default_transaction_read_only`. **Even so, run it against a SELECT-only database role.** An application-layer allowlist in front of a read-write connection is not a security boundary.
+
 ## What this is not
 
 - **Small n.** One dataset, two models, six conditions, one run each. Not a study — a cheap screen.

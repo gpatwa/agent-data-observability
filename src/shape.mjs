@@ -80,16 +80,38 @@ function conjuncts(node, acc = []) {
   return acc;
 }
 
+// Walk the whole AST for constructs this module cannot model. Checking only the
+// top level missed two: a window function is an `aggr_func` carrying `over`
+// (not a `function`), and a subquery nested inside a WHERE predicate parsed
+// into a filter key that looked valid. Both produced FALSE POSITIVES — a shape
+// that looked modelled but described the wrong query, which is worse than
+// declining. This scan is deliberately broad.
+function hasUnmodellableNode(node, depth = 0) {
+  if (node === null || typeof node !== 'object') return false;
+  if (Array.isArray(node)) return node.some((n) => hasUnmodellableNode(n, depth));
+  if (node.over) return true;                                // window function
+  if (depth > 0 && node.type === 'select') return true;      // nested subquery
+  for (const [k, v] of Object.entries(node)) {
+    if (k === 'type' || k === 'operator') continue;
+    if (hasUnmodellableNode(v, depth + 1)) return true;
+  }
+  return false;
+}
+
 export function extractShape(sql) {
   let ast;
   try {
     const parsed = parser.astify(sql, OPTS);
+    // Multiple statements in one string is not an analytics query — and is the
+    // shape an injection takes. Never model it.
+    if (Array.isArray(parsed) && parsed.length > 1) return null;
     ast = Array.isArray(parsed) ? parsed[0] : parsed;
   } catch {
     return null; // unparseable — exclude rather than guess
   }
   if (!ast || ast.type !== 'select') return null;
   if (ast.with || ast.having || ast.window) return null;
+  if (hasUnmodellableNode(ast)) return null;
   if (ast.distinct?.type) return null;
   if (!Array.isArray(ast.from) || ast.from.length !== 1) return null; // joins/subqueries
   const table = ast.from[0].table;

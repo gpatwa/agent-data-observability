@@ -223,3 +223,32 @@ test('CITED line is parsed through markdown emphasis', async () => {
   assert.deepEqual([...parseCited('  - CITED: q3 ')], ['q3']);
   assert.equal(parseCited('no citation line here'), null);
 });
+
+// --- false positives: shapes that LOOKED modelled but described the wrong query
+
+test('window functions are declined, not modelled', () => {
+  assert.equal(shape(`select region, sum(amount) over (partition by region) from orders`), null);
+});
+
+test('a subquery inside WHERE is declined', () => {
+  assert.equal(shape(`select sum(amount) from orders where customer_id in (select id from customers)`), null);
+});
+
+test('a subquery in FROM is declined', () => {
+  assert.equal(shape(`select sum(s) from (select sum(amount) s from orders group by region) t`), null);
+});
+
+test('multiple statements are never modelled', () => {
+  assert.equal(shape(`select 1; drop table orders`), null);
+});
+
+// --- read-only enforcement -------------------------------------------------
+
+test('read-only guard rejects a trailing DROP smuggled after a SELECT', async () => {
+  const { readOnlyRefusal } = await import('../src/readonly.mjs');
+  assert.ok(readOnlyRefusal('select 1; drop table orders'), 'must refuse multi-statement');
+  assert.ok(readOnlyRefusal('drop table orders'), 'must refuse a bare DROP');
+  assert.ok(readOnlyRefusal('update orders set amount = 0'), 'must refuse UPDATE');
+  assert.ok(readOnlyRefusal('  '), 'must refuse empty');
+  assert.equal(readOnlyRefusal(`select sum(amount) from orders`), null, 'must allow a plain SELECT');
+});

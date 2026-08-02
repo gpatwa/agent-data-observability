@@ -12,6 +12,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import pg from 'pg';
+import { readOnlyRefusal } from './readonly.mjs';
 import { appendFileSync } from 'node:fs';
 import { createHash, randomBytes } from 'node:crypto';
 import { serializeContext } from './context.mjs';
@@ -49,6 +50,11 @@ function scalarValues(rows) {
 
 const client = new pg.Client(PG);
 await client.connect();
+// Defence in depth: even if the parser is fooled, the session cannot write.
+// A production deployment would use a role with SELECT-only grants instead of
+// relying on a session setting the agent could in principle reset.
+await client.query('set default_transaction_read_only = on');
+await client.query('set statement_timeout = 30000');
 
 let seq = 0;
 const spansByLabel = new Map(); // "q3" -> span_id
@@ -103,11 +109,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   }
   const { sql, intent, follows_from } = req.params.arguments ?? {};
 
-  if (!/^\s*(select|with)\b/i.test(sql ?? '')) {
-    return {
-      content: [{ type: 'text', text: 'Only SELECT / WITH queries are permitted.' }],
-      isError: true,
-    };
+  const refusal = readOnlyRefusal(sql ?? '');
+  if (refusal) {
+    return { content: [{ type: 'text', text: refusal }], isError: true };
   }
 
   const label = `q${++seq}`;
