@@ -10,13 +10,19 @@ On Snowflake the tool is **simpler**, not bigger: trace context rides in the nat
 
 ## 1. Credentials
 
-Set these in your shell. **Never put them in the repo, a config file, or a chat window.**
+Credentials live in a **gitignored `.env`** at the repo root, written for you by
+the setup script below. Nothing needs exporting by hand, and nothing goes in the
+repo or a chat window.
 
-```bash
-export SNOWFLAKE_ACCOUNT='ORGNAME-ACCOUNTNAME'   # from your Snowsight URL, before .snowflakecomputing.com
-export SNOWFLAKE_USER='YOUR_USER'
-export SNOWFLAKE_WAREHOUSE='COMPUTE_WH'
-export SNOWFLAKE_ROLE='ACCOUNTADMIN'
+Precedence: a variable already set in your shell always beats `.env`, so you can
+override one value for a single run without editing the file.
+
+```
+SNOWFLAKE_ACCOUNT=ORGNAME-ACCOUNTNAME
+SNOWFLAKE_USER=YOUR_USER
+SNOWFLAKE_WAREHOUSE=COMPUTE_WH
+SNOWFLAKE_ROLE=ACCOUNTADMIN
+SNOWFLAKE_PRIVATE_KEY_PATH=/Users/you/.ssh/snowflake_key.p8
 ```
 
 Then **one** credential. Key-pair is recommended — Snowflake blocks password auth for programmatic access on accounts with MFA policy, which includes most new trials.

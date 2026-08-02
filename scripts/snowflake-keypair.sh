@@ -33,25 +33,38 @@ fi
 
 PUB=$(openssl rsa -in "$KEY" -pubout 2>/dev/null | grep -v '^-' | tr -d '\n')
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="$ROOT/.env"
+
+# Write .env so there is nothing to copy by hand. It is gitignored; the shell
+# environment still takes precedence over it at runtime.
+if [ -f "$ENV_FILE" ] && grep -q '^SNOWFLAKE_ACCOUNT=' "$ENV_FILE"; then
+  cp "$ENV_FILE" "$ENV_FILE.bak"
+  grep -v '^SNOWFLAKE_' "$ENV_FILE.bak" > "$ENV_FILE" || true
+  echo "==> existing .env had SNOWFLAKE_* keys; previous copy saved to .env.bak"
+fi
+
+cat >> "$ENV_FILE" <<ENVEOF
+SNOWFLAKE_ACCOUNT=$ACCOUNT
+SNOWFLAKE_USER=$USER_NAME
+SNOWFLAKE_WAREHOUSE=COMPUTE_WH
+SNOWFLAKE_ROLE=ACCOUNTADMIN
+SNOWFLAKE_PRIVATE_KEY_PATH=$KEY
+ENVEOF
+chmod 600 "$ENV_FILE"
+
+echo "==> wrote $ENV_FILE (gitignored, mode 600)"
+
 cat <<EOF
 
 ────────────────────────────────────────────────────────────────────────
-STEP 1 — run this in a Snowsight worksheet:
+ONE manual step — paste into a Snowsight worksheet and run:
 
 ALTER USER $USER_NAME SET RSA_PUBLIC_KEY='$PUB';
 
 ────────────────────────────────────────────────────────────────────────
-STEP 2 — run this in your shell (or add it to ~/.zshrc):
+Then verify (no exports needed — .env is loaded automatically):
 
-export SNOWFLAKE_ACCOUNT='$ACCOUNT'
-export SNOWFLAKE_USER='$USER_NAME'
-export SNOWFLAKE_WAREHOUSE='COMPUTE_WH'
-export SNOWFLAKE_ROLE='ACCOUNTADMIN'
-export SNOWFLAKE_PRIVATE_KEY_PATH='$KEY'
-
-────────────────────────────────────────────────────────────────────────
-STEP 3 — verify:
-
-npm run snowflake:check
+  npm run snowflake:check
 
 EOF

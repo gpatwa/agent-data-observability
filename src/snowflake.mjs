@@ -25,6 +25,7 @@
 //   export SNOWFLAKE_WAREHOUSE=COMPUTE_WH SNOWFLAKE_ROLE=ACCOUNTADMIN
 //   export SNOWFLAKE_DATABASE=SNOWFLAKE_SAMPLE_DATA SNOWFLAKE_SCHEMA=TPCH_SF1
 
+import './env.mjs';   // loads .env (shell env still wins)
 import snowflake from 'snowflake-sdk';
 import { readFileSync } from 'node:fs';
 import { createPrivateKey } from 'node:crypto';

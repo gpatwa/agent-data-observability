@@ -11,6 +11,7 @@
 //
 // Exported as runAgent() so cross-session.mjs can fan out over many questions.
 
+import './env.mjs';   // loads .env (shell env still wins)
 import { spawn } from 'node:child_process';
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
