@@ -1,4 +1,4 @@
-<title>Agents don't flood your warehouse &#8212; six conditions, measured</title>
+<title>The duplicate-query problem is real &#8212; it just isn't the agents</title>
 <style>
   /* Deliberately single-theme: this page commits to one dark visual world &#8212;
      an instrument readout &#8212; rather than adapting to the viewer's preference.
@@ -10,7 +10,7 @@
     --accent:#3FB3B8; --accent-soft:#3FB3B81F;
     --warn:#E0904F; --warn-soft:#E0904F1F;
     --sunken-ink:#D6E3E4; --sunken-muted:#7E9295;
-    --observed:#3987e5; --predicted:#d95926;
+    --observed:#3987e5; --predicted:#d95926; --baseline:#199e70;
     --band:#E0904F1A;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     --serif: ui-serif, Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
@@ -54,6 +54,7 @@
   .band { position:absolute; inset:0 0 0 80%; background:var(--band); border-left:1px dashed var(--warn); border-radius:0 3px 3px 0; }
   .bar { position:relative; height:14px; border-radius:0 4px 4px 0; background:var(--observed); }
   .bar.pred { background:var(--predicted); }
+  .bar.base { background:var(--baseline); }
   .val { position:absolute; left:calc(100% + .5rem); top:50%; transform:translateY(-50%); font-family:var(--mono); font-size:.76rem; font-variant-numeric:tabular-nums; color:var(--ink); white-space:nowrap; }
   .axis { display:grid; grid-template-columns:minmax(0,13rem) 1fr 3.4rem; gap:var(--s3); margin-top:var(--s1); }
   .ticks { position:relative; height:1.4rem; border-top:1px solid var(--rule); }
@@ -121,8 +122,8 @@
       <span class="label" style="color:var(--warn)">Negative result</span>
       <span class="label">July 2026</span>
     </div>
-    <h1>AI agents don't flood your<br>warehouse with duplicate queries</h1>
-    <p class="dek">The prediction was that agents fire thousands of near-identical speculative queries &#8212; only 10&#8211;20% of their sub-plans distinct &#8212; leaving a large deduplication prize. I built the tracing needed to measure that, then ran six conditions designed to give the claim its best shot. Only the one I <em>simulated from the paper</em> behaved that way.</p>
+    <h1>The duplicate-query problem is real.<br>It just isn't the agents.</h1>
+    <p class="dek">The prediction was that AI agents fire thousands of near-identical speculative queries &#8212; only 10&#8211;20% of their sub-plans distinct &#8212; leaving a large deduplication prize. I built the tracing to measure it and ran six conditions designed to give the claim its best shot. Agents came in at 0&#8211;43%. Then I scored 18.9M queries from real Redshift production fleets on the same metric: <strong>91.3%</strong>. The prize exists. It belongs to the dashboards and pipelines already running, not to the agents.</p>
   </header>
 
   <!-- ================= THE CHART ================= -->
@@ -132,7 +133,12 @@
       <span class="fig-sub">Share of servable queries a shared rollup could have eliminated. Schema lookups, joins and CTEs are excluded rather than counted as deduplicated.</span>
     </figcaption>
 
-    <div class="chart" role="img" aria-label="Bar chart of query redundancy across six conditions. Simulated naive agent 89.9 percent, the only condition inside the 80 percent threshold the thesis requires. Real agent Opus 5 and wide schema both 42.9 percent, eight concurrent sessions 20.0 percent, coordinator with subagents 9.1 percent, real agent Haiku 4.5 zero percent.">
+    <div class="chart" role="img" aria-label="Bar chart of query redundancy across six conditions. Real human and pipeline warehouse traffic 91.3 percent and the simulated naive agent 89.9 percent both sit inside the 80 percent threshold the thesis requires; no real agent condition does. Real agent Opus 5 and wide schema both 42.9 percent, eight concurrent sessions 20.0 percent, coordinator with subagents 9.1 percent, real agent Haiku 4.5 zero percent.">
+
+      <div class="row" title="Redset: 18.9M SELECT queries, 20 real Amazon Redshift production clusters, median per cluster">
+        <div class="rname">Real human/pipeline traffic<br><span class="n">n=18.9M queries</span></div>
+        <div class="track"><div class="band"></div><div class="bar base" style="width:91.3%"><span class="val">91.3%</span></div></div>
+      </div>
 
       <div class="row" title="Simulated from the published description &#8212; 89 servable queries, 9 anchors">
         <div class="rname">Simulated naive agent<br><span class="n">n=89 servable</span></div>
@@ -177,6 +183,7 @@
     </div>
 
     <div class="legend">
+      <span class="key"><i style="background:var(--baseline)"></i>real human/pipeline traffic (Redset)</span>
       <span class="key"><i style="background:var(--predicted)"></i>predicted (simulated from the paper)</span>
       <span class="key"><i style="background:var(--observed)"></i>observed (real agents)</span>
       <span class="key"><i style="background:var(--band);border:1px dashed var(--warn)"></i>&#8805;80% &#8212; the prize the thesis assumes</span>
@@ -188,6 +195,7 @@
         <table>
           <thead><tr><th>Condition</th><th class="num">Queries</th><th class="num">Servable</th><th class="num">Anchors</th><th class="num">Redundancy</th><th class="num">Grounded</th></tr></thead>
           <tbody>
+            <tr><td>Real human/pipeline traffic (Redset)</td><td class="num">18.9M</td><td class="num">&#8212;</td><td class="num">&#8212;</td><td class="num">91.3%</td><td class="num">n/a</td></tr>
             <tr><td>Simulated naive agent</td><td class="num">93</td><td class="num">89</td><td class="num">9</td><td class="num">89.9%</td><td class="num">4 / 93</td></tr>
             <tr><td>Real agent &#183; Opus 5</td><td class="num">6</td><td class="num">7</td><td class="num">4</td><td class="num">42.9%</td><td class="num">6 / 6</td></tr>
             <tr><td>Wide schema &#183; 120 tables</td><td class="num">17</td><td class="num">7</td><td class="num">4</td><td class="num">42.9%</td><td class="num">16 / 17</td></tr>

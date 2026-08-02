@@ -6,7 +6,7 @@ The premise, from [Intelligence is Free, Now What?](https://bair.berkeley.edu/bl
 
 I built the trace primitive needed to measure it, then measured it against real agents.
 
-**The prize did not show up.** This repo is the harness, the evidence, and an honest account of what failed.
+**The prize did not show up in agent traffic.** It showed up somewhere else entirely: real human and pipeline warehouse traffic is **~10x more redundant than anything the agents produced**. This repo is the harness, the evidence, and an honest account of what failed.
 
 📉 **[Read the findings](https://gpatwa.github.io/agent-data-observability/)** — six conditions, one chart, and the six bugs I hit getting there.
 
@@ -24,8 +24,11 @@ Six conditions, chosen to give the thesis its best shot. Redundancy is measured 
 | 8 concurrent sessions | 41 | 25 | 20 | 20.0% | 34 / 41 |
 | Wide schema, 120 tables | 17 | 7 | 4 | 42.9% | 16 / 17 |
 | **Coordinator + subagents** | 25 | 11 | 10 | **9.1%** | 25 / 25 |
+| **Human/pipeline baseline** (Redset) | 18.9M | — | — | **91.3%** median | n/a |
 
 Only the simulator — the one built from the published description rather than observed — reaches the redundancy the thesis needs. **The two conditions most like the thesis's own premise, concurrent sessions and a delegating coordinator, produced the least of it.**
+
+And the last row is the one that reframes everything.
 
 **Cross-session redundancy: 13.0%.** Sharing rollups across eight agents' worth of overlapping questions eliminated 3 of 23 per-session anchors.
 
@@ -50,6 +53,33 @@ This was the thesis's best remaining home: independent investigators, no shared 
 
 **6. A wide schema will make agents flail.** *Partly true, and it doesn't help.*
 Burying `orders`/`refunds` in 120 plausible decoy tables and withholding the schema nearly tripled query count, 6 → **17**. But the extra queries were `information_schema` lookups, and redundancy among *servable* queries was **42.9% — identical to the narrow-schema run**. Schema discovery is real traffic that a rollup cache cannot serve; it is cacheable only in the trivial sense that a catalog is static.
+
+## The baseline that changes the conclusion
+
+Every number above was measured on agent traffic, with nothing to compare it against. [Redset](https://github.com/amazon-science/redset) — Amazon's published trace of real Amazon Redshift production fleets — provides the missing control.
+
+Scored with **this repo's own metric** (`1 - distinct/total`) over **18.9M SELECT queries across 20 production clusters**:
+
+| | Redundancy |
+|---|---|
+| Median cluster | **91.3%** |
+| p25 – p75 | 71.7% – 96.6% |
+| Range | 58.1% – 100% |
+| Clusters above 80% | **70%** |
+
+Against agents at 0–42.9%, and a delegating coordinator at 9.1%.
+
+**So the deduplication prize is real, and it is enormous — it just does not belong to agents.** It belongs to the human dashboards and scheduled pipelines the warehouse is already running, where the same queries repeat by construction. Redshift ships result caching for exactly this reason (`was_cached` is a column in the trace).
+
+That inverts the original thesis rather than merely refuting it. Building agent-specific query deduplication means **optimizing the least redundant traffic in the warehouse.** An agent investigating a question asks a sequence of different questions; a dashboard asks the same one every fifteen minutes forever.
+
+Reproduce with `npm run baseline` (streams from S3, stores nothing locally). Saved output: [`docs/runs/redset-baseline.txt`](docs/runs/redset-baseline.txt).
+
+**Caveats, and they matter:**
+- Redset carries **no SQL text**, so the shape/subsumption analysis cannot run on it. `feature_fingerprint` is "a proxy for query-likeness, not based on text" — closest to this repo's `ast_hash` tier, but not the same function. The comparison is like-for-like in *metric definition*, not in *fingerprint definition*.
+- It is Redshift, 2024, human + scheduled-pipeline traffic. Scheduled ETL repeats by design, and that is part of the point — but it means these are different *kinds* of workload, not the same workload with different drivers.
+- 20 of 200 provisioned instances, `SELECT` only, clusters with ≥100 queries.
+- **Redset is CC BY-NC 4.0 — non-commercial use only.** Attribute Amazon; do not reuse these numbers in a commercial product without checking the licence.
 
 ## What survived
 
