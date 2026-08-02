@@ -25,6 +25,8 @@ if [ ! -f "$PGDATA/PG_VERSION" ]; then
   cat >> "$PGDATA/postgresql.conf" <<EOF
 port = $PORT
 listen_addresses = 'localhost'
+# /var/run/postgresql is not writable by unprivileged CI users
+unix_socket_directories = '/tmp'
 logging_collector = on
 log_directory = 'pglog'
 log_filename = 'queries.log'
@@ -42,7 +44,7 @@ for _ in $(seq 1 20); do
   pg_isready -h localhost -p $PORT >/dev/null 2>&1 && break
   sleep 0.5
 done
-pg_isready -h localhost -p $PORT >/dev/null || { echo "postgres failed to start:" >&2; tail -20 "$PGDATA/pglog/queries.log" >&2; exit 1; }
+pg_isready -h localhost -p $PORT >/dev/null || { echo "postgres failed to start:" >&2; tail -30 "$PGDATA/startup.log" "$PGDATA/pglog/queries.log" >&2 2>/dev/null; exit 1; }
 
 echo "==> seeding 4.4M rows (this is the slow part)"
 psql -h localhost -p $PORT -U postgres -d postgres -q -f "$ROOT/seed.sql" 2>&1 | grep -v NOTICE || true
