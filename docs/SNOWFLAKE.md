@@ -24,22 +24,14 @@ Then **one** credential. Key-pair is recommended — Snowflake blocks password a
 ### Option A — key-pair (recommended)
 
 ```bash
-openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ~/.ssh/snowflake_key.p8 -nocrypt
-openssl rsa -in ~/.ssh/snowflake_key.p8 -pubout -out ~/.ssh/snowflake_key.pub
-chmod 600 ~/.ssh/snowflake_key.p8
-# print the public key body to paste into Snowflake (strip header/footer/newlines):
-grep -v '^-' ~/.ssh/snowflake_key.pub | tr -d '\n'; echo
+./scripts/snowflake-keypair.sh YOUR_USER ORGNAME-ACCOUNTNAME
 ```
 
-In a Snowsight worksheet, with the value you just printed:
+Generates the key if absent and prints the exact `ALTER USER` statement to paste
+into a Snowsight worksheet, plus the `export` block for your shell. The private
+key never leaves the machine and is never printed — only the public body is.
 
-```sql
-ALTER USER YOUR_USER SET RSA_PUBLIC_KEY='<paste the single-line body>';
-```
-
-```bash
-export SNOWFLAKE_PRIVATE_KEY_PATH=~/.ssh/snowflake_key.p8
-```
+Find your user with `SELECT CURRENT_USER();` in Snowsight.
 
 ### Option B — programmatic access token
 

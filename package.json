@@ -11,7 +11,8 @@
     "test:e2e": "./scripts/e2e.sh",
     "baseline": "./scripts/redset-baseline.sh",
     "snowflake:check": "node src/snowflake-check.mjs",
-    "snowflake:cost": "node src/snowflake-cost.mjs"
+    "snowflake:cost": "node src/snowflake-cost.mjs",
+    "snowflake:keypair": "./scripts/snowflake-keypair.sh"
   },
   "keywords": [
     "ai-agents",
