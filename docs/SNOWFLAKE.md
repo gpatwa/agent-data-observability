@@ -49,6 +49,20 @@ Snowsight → your user → Settings → Authentication → Programmatic access 
 export SNOWFLAKE_PAT='...'
 ```
 
+> ⚠️ **On a fresh trial this is usually blocked.** The PAT panel reports
+> *"Missing network policy — programmatic access tokens require an active
+> network policy on the account or user."* You can create one, but a
+> misconfigured network policy can lock you out of your own account, which is a
+> poor trade for avoiding a two-command key-pair setup. **Prefer Option A.**
+
+### Option C — password
+
+Works only if no MFA policy applies to the user (a brand-new trial with
+*0 registered MFA methods* qualifies). Supported by the adapter via
+`SNOWFLAKE_PASSWORD`, but it breaks the moment MFA is enabled and keeps a
+long-lived secret in your shell environment. Use it to unblock yourself, not as
+the resting state.
+
 ---
 
 ## 2. Check the connection
