@@ -21,3 +21,18 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm ci
       - run: npm test
+
+  e2e:
+    # Exercises the real claim: queries go into Postgres, the plan tree comes
+    # back out of its log. Needs a cluster whose log file we can read, so it
+    # runs its own via initdb rather than a service container.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+      - name: Put PostgreSQL binaries on PATH
+        run: echo "$(ls -d /usr/lib/postgresql/*/bin | tail -1)" >> "$GITHUB_PATH"
+      - run: npm ci
+      - run: npm run test:e2e

@@ -3,4 +3,9 @@
 // applying warehouse billing. Query execution time is real and never scaled.
 export const DILATION = 100;
 
-export const PG = { host: 'localhost', port: 55432, user: 'postgres', database: 'postgres' };
+export const PG = {
+  host: process.env.PGHOST ?? 'localhost',
+  port: Number(process.env.PGPORT ?? 55432),
+  user: process.env.PGUSER ?? 'postgres',
+  database: process.env.PGDATABASE ?? 'postgres',
+};

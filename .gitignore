@@ -7,3 +7,4 @@ out/*
 
 # keep saved run evidence despite the *.log rule above
 !docs/runs/*.log
+.pgdata-e2e/
