@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "demo": "./scripts/demo.sh",
-    "test": "node --test \"test/**/*.test.mjs\"",
+    "test": "node --test \"test/*.test.mjs\"",
     "build:pages": "node scripts/build-pages.mjs",
     "test:e2e": "./scripts/e2e.sh"
   },
