@@ -158,6 +158,40 @@ This is a measurement harness. It is **not** ready to point at a production ware
 
 The read-only guard was also genuinely broken until recently — it pattern-matched the start of the string, so `select 1; drop table x` passed and the DROP executed. It now parses and requires exactly one SELECT, and the session sets `default_transaction_read_only`. **Even so, run it against a SELECT-only database role.** An application-layer allowlist in front of a read-write connection is not a security boundary.
 
+## The Snowflake run, and what it exposed
+
+A real agent against Snowflake's TPC-H sample schema — a dataset I did not build,
+with no anomaly planted in it and no answer hidden for the agent to find. It
+issued 4 queries, used 3, and concluded that revenue is uniform across all 25
+nations *because that is a property of TPC-H's synthetic generator* rather than
+inventing a business narrative. Good analysis, and the strongest validity check
+in this repo: every other condition used questions I wrote against data I seeded.
+
+Then I fetched the SQL it actually wrote and ran the shape extractor over it:
+
+| Query | Joins | Modellable? |
+|---|---|---|
+| `q1` revenue by nation | 3 | **declined** |
+| `q2` date range of orders | 0 | modelled |
+| `q3` revenue by nation and year | 3 | **declined** |
+| `q4` share and rank shift across years | 4 | **declined** |
+
+**1 of 4 — and it is the throwaway.** The three the analysis cannot see are the
+three that answer the question; the one it can see is a `min/max` date check.
+
+This is the sharpest statement of the limitation recorded elsewhere in this
+README as "~1 in 7 realistic queries". On genuine analytics work the
+covering-set analysis is blind to precisely the queries that matter, because
+real analytics is join-heavy and the extractor declines joins rather than
+mis-parsing them. **Every redundancy figure in this repo is therefore computed
+over single-table aggregate queries** — which the two-table Postgres fixture
+made abundant and a real warehouse does not.
+
+That does not change the direction of the finding (agents at 0–43% against a
+91.3% human/pipeline baseline), but it does bound what the number describes.
+Fixing it means sqlglot with join-aware lineage, which is the restart plan
+below.
+
 ## Prior art, and what I would use instead
 
 I hand-rolled two things that already have standards. If you are evaluating this repo, you should know I am aware of that rather than assume I wasn't.

@@ -22,8 +22,9 @@ const OUT = fileURLToPath(new URL('out/', ROOT));
 const SERVER = fileURLToPath(new URL('src/snowflake-mcp-server.mjs', ROOT));
 
 const SYSTEM_APPEND = `
-You are a data analyst with access to one tool: run_sql, against a PostgreSQL
-analytics warehouse. You have no filesystem and no other tools.
+You are a data analyst with access to one tool: run_sql, against a Snowflake
+analytics warehouse holding the TPC-H sample schema. You have no filesystem and
+no other tools. Snowflake SQL dialect.
 
 Work the question until you can answer it with evidence.
 
@@ -51,9 +52,9 @@ back what it found.
 
 export function runAgent({ question, model = null, tag = 'agent', wide = false, subagents = false }) {
   mkdirSync(OUT, { recursive: true });
-  const eventsPath = `${OUT}${tag}-events.jsonl`;
-  const answerPath = `${OUT}${tag}-answer.txt`;
-  const configPath = `${OUT}${tag}-mcp.json`;
+  const eventsPath = `${OUT}sf-${tag}-events.jsonl`;
+  const answerPath = `${OUT}sf-${tag}-answer.txt`;
+  const configPath = `${OUT}sf-${tag}-mcp.json`;
 
   writeFileSync(
     configPath,
