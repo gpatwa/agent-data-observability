@@ -128,6 +128,20 @@ This is a measurement harness. It is **not** ready to point at a production ware
 
 The read-only guard was also genuinely broken until recently — it pattern-matched the start of the string, so `select 1; drop table x` passed and the DROP executed. It now parses and requires exactly one SELECT, and the session sets `default_transaction_read_only`. **Even so, run it against a SELECT-only database role.** An application-layer allowlist in front of a read-write connection is not a security boundary.
 
+## Prior art, and what I would use instead
+
+I hand-rolled two things that already have standards. If you are evaluating this repo, you should know I am aware of that rather than assume I wasn't.
+
+**[OpenTelemetry database semantic conventions](https://opentelemetry.io/docs/specs/semconv/db/database-spans/) + [sqlcommenter](https://opentelemetry-python.readthedocs.io/en/latest/examples/sqlcommenter/README.html).** This is what `src/context.mjs` and `src/trace.mjs` are, reinvented. The OTel spec covers `db.query.text`, sanitization, query summarization, context propagation and sqlcommenter explicitly. My `/*agenttrace:t=…,s=…,p=…*/` is a nonstandard spelling of `/*traceparent='00-…'*/`. Using the spec would delete the log parser, the span assembler and the report renderer, because any OTel backend — Tempo, Honeycomb, Datadog, Jaeger — renders the trace for free. The agent dimension is just span attributes.
+
+**[sqlglot](https://github.com/tobymao/sqlglot) instead of node-sql-parser.** 30+ dialects including Snowflake, Spark/Databricks and BigQuery, plus a transpiler, an optimizer and column-level lineage. The 1-in-7 modelling rate reported above is partly this repo's parser hitting its ceiling. sqlglot would raise it *and* provide multi-warehouse dialect support in the same move. It is Python, so it means a sidecar or a port.
+
+**[ADBC](https://arrow.apache.org/adbc/current/index.html) for connecting many warehouses.** Vendor-neutral, Arrow-native, DB-API compliant so Ibis and SQLAlchemy sit on top of it; dbt Fusion standardized on it. [Ibis](https://ibis-project.org/) if you want to express a query once across backends rather than only connect to them.
+
+**Adjacent, but solving something else:** warehouse cost tools (Select.dev, Keebo, Espresso AI) optimize warehouses rather than query semantics and have no notion of which agent or reasoning step issued a query; MCP gateways (Snowflake's Cortex AI Gateway, MintMCP) govern access rather than economics. I could not find anything doing per-agent query lineage.
+
+**If I started again:** OTel + sqlcommenter for the trace, sqlglot for the shapes, and Snowflake `QUERY_TAG` joined to [`QUERY_ATTRIBUTION_HISTORY`](https://docs.snowflake.com/en/sql-reference/account-usage/query_attribution_history) for *measured* rather than modelled cost — which would also let me check the cost figures published here, with less code than they currently take.
+
 ## What this is not
 
 - **Small n.** One dataset, two models, six conditions, one run each. Not a study — a cheap screen.
