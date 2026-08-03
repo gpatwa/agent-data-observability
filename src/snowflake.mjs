@@ -100,20 +100,33 @@ export function execute(conn, sqlText, binds = []) {
 // QUERY_TAG at 2000 characters, so intent is truncated rather than risking a
 // rejected ALTER SESSION mid-run.
 export function traceTag(span) {
+  // The intent is model-authored free text and gets inlined into a SQL string
+  // literal below, so strip the characters that could terminate or escape it.
+  // Structure is ours; only this field is untrusted.
+  const safeIntent = String(span.span_intent ?? '')
+    .replace(/[''\\\x00-\x1f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 300);
   const tag = {
     t: span.trace_id,
     s: span.span_id,
     p: span.parent_span_id ?? null,
     a: span.agent_id,
     c: span.speculation_class,
-    i: String(span.span_intent ?? '').slice(0, 300),
+    i: safeIntent,
   };
   return JSON.stringify(tag).slice(0, 2000);
 }
 
 export async function setTag(conn, span) {
-  // Bound parameter so a quote in the intent cannot break the statement.
-  await execute(conn, 'ALTER SESSION SET QUERY_TAG = ?', [traceTag(span)]);
+  // ALTER SESSION DOES NOT ACCEPT BIND PARAMETERS. Passing `?` with a bind
+  // silently sets the tag to the literal string "?" — no error, and every
+  // downstream trace lookup then finds nothing. This cost a whole agent run.
+  // The value must be inlined; traceTag() has already removed quotes and
+  // backslashes, and the doubling here is belt and braces.
+  const tag = traceTag(span).replace(/'/g, "''");
+  await execute(conn, `ALTER SESSION SET QUERY_TAG = '${tag}'`);
 }
 
 export const parseTag = (raw) => {

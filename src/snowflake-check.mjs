@@ -2,7 +2,7 @@
 // with a specific, actionable message rather than letting an agent run die
 // halfway through on a permissions problem.
 
-import { connect, execute, envConfig } from './snowflake.mjs';
+import { connect, execute, envConfig, setTag } from './snowflake.mjs';
 
 const ok = (s) => `  ✓ ${s}`;
 const bad = (s) => `  ✗ ${s}`;
@@ -60,14 +60,29 @@ async function main() {
   await q('tpch scale', `select count(*) c from snowflake_sample_data.tpch_sf1.orders`,
     (rows) => console.log(ok(`TPCH_SF1.orders readable — ${Number(rows[0].C).toLocaleString()} rows`)));
 
-  // QUERY_TAG round trip: the whole mechanism depends on this landing.
-  await q('query tag', `alter session set query_tag = '{"t":"preflight"}'`, () => {});
-  await q('tag visible',
-    `select query_tag from table(information_schema.query_history(result_limit=>10))
-     where query_tag like '%preflight%' limit 1`,
-    (rows) => console.log(rows.length
-      ? ok('QUERY_TAG round-trips into query history')
-      : bad('QUERY_TAG not visible yet (history can lag a few seconds — retry)')));
+  // QUERY_TAG round trip via the REAL setTag() path. An earlier version wrote
+  // its own literal here, so it passed while production silently tagged every
+  // query "?" — the preflight must exercise the same code the agent uses.
+  const probe = {
+    trace_id: 'preflight-probe', span_id: 'p0', parent_span_id: null,
+    agent_id: 'preflight', speculation_class: 'probe',
+    span_intent: "round-trip check with ' quote and \\ backslash",
+  };
+  try {
+    await setTag(conn, probe);
+    const { rows } = await execute(conn,
+      `select query_tag from table(information_schema.query_history(result_limit=>50))
+       where query_tag like '%preflight-probe%' limit 1`);
+    if (!rows.length) {
+      console.log(bad('QUERY_TAG not visible yet (history lags a few seconds — retry)'));
+    } else if (rows[0].QUERY_TAG === '?' || !rows[0].QUERY_TAG.includes('preflight-probe')) {
+      console.log(bad(`QUERY_TAG did not carry the trace: ${JSON.stringify(rows[0].QUERY_TAG)}`));
+    } else {
+      console.log(ok('QUERY_TAG carries trace context into query history'));
+    }
+  } catch (e) {
+    console.log(bad(`setTag failed: ${e.message.split('\n')[0]}`));
+  }
   await q('clear tag', `alter session unset query_tag`, () => {});
 
   // ACCOUNT_USAGE is the one that actually carries credits.

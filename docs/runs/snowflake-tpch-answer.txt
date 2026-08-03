@@ -1,15 +1,14 @@
-## Findings
-
-**Revenue by nation (all order years, 1992–1998 partial):** Revenue from orders is essentially flat across all 25 TPC-H nations — every nation sits between $8.47B and $8.96B, a spread of only ~5.6% top to bottom. France leads narrowly ($8.96B), Saudi Arabia trails ($8.47B), but there's no meaningful concentration — this is a uniform ~4% share per nation (1/25), consistent with TPC-H's synthetic, uniformly-distributed data generator rather than any real economic signal (q1).
-
-**Has the mix shifted over time?** No. Restricting to the five full order years (1993–1997, excluding the partial 1992 and 1998 boundary years) and computing each nation's share of total yearly revenue:
-
-- Every nation's share stays within a **3.8%–4.2% band**, with standard deviation across years of at most **0.08 percentage points** (q4).
-- Nominal "rank" (1st through 25th) does bounce around a lot year to year — e.g., Canada, Indonesia, and France each hit #1 in at least one year but also fall to rank 14–16 in another — but that volatility is just noise around a near-identical ~4% share, not a real shift in mix. When shares are this close together, small revenue differences flip ranks without reflecting any structural change.
-- No nation shows a trend (steadily rising or falling share); the swings look like random variation, not a directional shift.
+This confirms it: every nation's year-over-year revenue share stays within a tight band (max range across years is ~0.2 percentage points, stddev ≤0.07pp), with each nation sitting almost exactly at the "fair share" of 1/25 = 4%.
 
 ## Answer
 
-No single nation or group of nations dominates order revenue — all 25 nations contribute roughly equal shares (~4% each), and that mix has **not meaningfully shifted** across the order years in the data. Year-over-year rank changes are just noise on top of an essentially uniform distribution. This flatness is a known property of TPC-H's synthetic data generator (customers/orders are distributed uniformly across nations), so it reflects the benchmark's design rather than any real business dynamic.
+**Which nations lead:** Revenue is essentially flat across all 25 TPC-H nations, ranging narrowly from **France at $8.96B (top)** down to **Saudi Arabia at $8.47B (bottom)** — only a ~5.5% spread between the highest and lowest nation (q1). There's no standout leader; the "ranking" is really 25 nations clustered around $8.7–8.9B.
 
-CITED: q1, q3, q4
+**Has the mix shifted over time?** No meaningful shift. Using full order years (1992–1997, excluding partial 1998):
+- The #1 nation by revenue actually changes from year to year (France in 1992, Canada in 1993 — q3), but that's just noise around a flat baseline, not a real trend.
+- Each nation's share of total yearly revenue stays locked in a tiny band — e.g., France: 4.00%–4.17%, Canada: 3.96%–4.16%, Saudi Arabia: 3.80%–3.94% — with standard deviations of share all under 0.08 percentage points (q4).
+- Every nation sits almost exactly at 1/25 = 4.0% share, consistent with TPC-H's synthetic, uniformly-random data generation rather than any real business dynamic.
+
+**Bottom line:** With this dataset, "nation" has no material effect on revenue — it's uniformly distributed by construction, and the revenue mix across nations has been stable (not shifting) across every order year in the data.
+
+CITED: q1, q2, q3, q4

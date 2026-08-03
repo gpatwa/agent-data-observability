@@ -35,6 +35,7 @@ async function main() {
     from table(information_schema.query_history(
       end_time_range_start => dateadd('hour', -${HOURS}, current_timestamp())))
     where QUERY_TAG like '%"t":%'
+      and QUERY_TAG not like '%preflight%'
     order by START_TIME desc
     limit 500`);
 
@@ -59,6 +60,7 @@ async function main() {
            on a.QUERY_ID = q.QUERY_ID
     where q.START_TIME >= dateadd('hour', -${HOURS}, current_timestamp())
       and q.QUERY_TAG like '%"t":%'
+      and q.QUERY_TAG not like '%preflight%'
     order by q.START_TIME desc
     limit 1000`);
 
@@ -109,6 +111,20 @@ async function main() {
   console.log(`  traces                                 ${byTrace.size}`);
   console.log(`  total queries                          ${totQ}`);
   console.log(`  total credits                          ${totC.toFixed(6)}`);
+
+  // Refuse to publish a comparison built on nothing. Attribution arrives
+  // gradually, so a partially-populated view yields a near-zero cost that looks
+  // like a real measurement and would invite "correcting" a published figure to
+  // zero. Silence is the correct output until the data is actually there.
+  if (totC <= 0) {
+    console.log('\n  Total attributed credits are zero, so there is no measurement yet.');
+    console.log('  NOT printing a measured-vs-modelled ratio — it would read as 0.00x');
+    console.log('  and invite correcting a real published figure to zero.');
+    console.log('  Re-run once QUERY_ATTRIBUTION_HISTORY has caught up.');
+    conn.destroy(() => {});
+    return;
+  }
+
   console.log(`  MEASURED cost per resolved task        ${usd(measuredPerTask)}`);
   console.log(`  modelled equivalent (Postgres runs)    $0.073   <- published figure`);
   console.log(`\n  Ratio measured/modelled: ${(measuredPerTask / 0.073).toFixed(2)}x`);

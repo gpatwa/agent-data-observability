@@ -252,3 +252,21 @@ test('read-only guard rejects a trailing DROP smuggled after a SELECT', async ()
   assert.ok(readOnlyRefusal('  '), 'must refuse empty');
   assert.equal(readOnlyRefusal(`select sum(amount) from orders`), null, 'must allow a plain SELECT');
 });
+
+// --- Snowflake QUERY_TAG safety -------------------------------------------
+// ALTER SESSION does not accept bind parameters, so the tag is inlined into a
+// SQL string literal. The intent is model-authored, so it must not be able to
+// terminate or escape that literal.
+
+test('traceTag strips quotes and backslashes from model-authored intent', async () => {
+  const { traceTag } = await import('../src/snowflake.mjs');
+  const tag = traceTag({
+    trace_id: 'abc', span_id: 'def', parent_span_id: null,
+    agent_id: 'a', speculation_class: 'probe',
+    span_intent: `it's a \\ backslash '; drop table orders; --`,
+  });
+  assert.ok(!tag.includes("'"), 'no single quote may survive into the tag');
+  assert.ok(!tag.includes('\\'), 'no backslash may survive into the tag');
+  assert.ok(tag.includes('"t":"abc"'), 'trace id must still be present');
+  assert.ok(tag.length <= 2000, 'must respect the QUERY_TAG length cap');
+});
