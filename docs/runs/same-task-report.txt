@@ -1,0 +1,29 @@
+========================================================================
+SAME-TASK REPLICATION — 8 attempts, 55 queries
+========================================================================
+
+  queries per attempt: 6, 6, 8, 7, 8, 7, 5, 8
+
+── WHOLE-QUERY LEVEL (what this repo measured previously) ─────
+  exact SQL          54/55 distinct   98.2%
+  AST-normalized     51/55 distinct   92.7%
+  covering set       14 anchors serve 46/47 servable
+  (8 queries unmodellable — joins/CTEs/schema lookups)
+
+── SUB-EXPRESSION LEVEL (what the paper measured) ─────────────
+  size   kind             total  distinct  distinct %
+  1      filter             115        13       11.3%
+  1      scan                47         2        4.3%
+  2      filtered_scan       47        12       25.5%
+  2      measure            117        10        8.5%
+  3      grouping            46        10       21.7%
+  4      full_agg            47        27       57.4%
+
+  ALL SUB-EXPRESSIONS  74/419 distinct = 17.7%
+  paper reports: "often a small fraction of less than 10-20% of the total"
+  → REPRODUCES the published range
+
+  Caveats: this is an approximation of plan sub-expressions from the
+  query shape, not a real plan decomposition; the paper used BIRD with
+  50 attempts on GPT-4o-mini, this is 8 attempts on a frontier model.
+

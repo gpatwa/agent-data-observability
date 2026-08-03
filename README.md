@@ -1,97 +1,77 @@
 # agent-data-observability
 
-**A harness for measuring what AI agents actually do to your data warehouse — and the negative result it produced.**
+**A harness for measuring what AI agents do to your data warehouse — and a correction to what I first published with it.**
 
-The premise, from [Intelligence is Free, Now What?](https://bair.berkeley.edu/blog/2026/07/07/intelligence-is-free-now-what/) (BAIR, 2026) and the UC Berkeley EPIC Data Lab's [agent-first data systems](https://arxiv.org/pdf/2509.00997) work: agents issue vast numbers of near-duplicate speculative queries, only 10–20% of their sub-plans are distinct, and there is a large optimization prize in deduplicating that traffic.
+The premise, from [Intelligence is Free, Now What?](https://bair.berkeley.edu/blog/2026/07/07/intelligence-is-free-now-what/) (BAIR, 2026) and the UC Berkeley EPIC Data Lab's [agent-first data systems](https://arxiv.org/abs/2509.00997) paper: agents issue vast numbers of overlapping speculative queries, only 10–20% of sub-plans are distinct, and there is a large prize in sharing that computation.
 
-I built the trace primitive needed to measure it, then measured it against real agents.
+I built the tracing, ran six conditions, and published that **the claim did not reproduce.**
 
-**The prize did not show up in agent traffic.** It showed up somewhere else entirely: real human and pipeline warehouse traffic is **~10x more redundant than anything the agents produced**. This repo is the harness, the evidence, and an honest account of what failed.
+**That was wrong, and the error was mine.** I measured a different quantity than the one the claim is about. When I finally ran the published experiment — *N agents attempting the **same** task*, redundancy counted over **sub-expressions** — it reproduced at **17.7% distinct**, inside the stated range.
 
-📉 **[Read the findings](https://gpatwa.github.io/agent-data-observability/)** — six conditions, one chart, and the six bugs I hit getting there.
-
----
-
-## Headline
-
-Six conditions, chosen to give the thesis its best shot. Redundancy is measured against queries a rollup could actually serve — schema lookups, joins and CTEs are excluded rather than counted as deduplicated.
-
-| Condition | Queries | Servable | Anchors | **Redundancy** | Grounded |
-|---|---|---|---|---|---|
-| Simulated naive agent | 93 | 89 | 9 | **~90%** | 4 / 93 |
-| Real agent, Opus 5 | 6 | 7 | 4 | 42.9% | 6 / 6 |
-| Real agent, Haiku 4.5 | 5 | 3 | 3 | 0% | 4 / 5 |
-| 8 concurrent sessions | 41 | 25 | 20 | 20.0% | 34 / 41 |
-| Wide schema, 120 tables | 17 | 7 | 4 | 42.9% | 16 / 17 |
-| **Coordinator + subagents** | 25 | 11 | 10 | **9.1%** | 25 / 25 |
-| **Human/pipeline baseline** (Redset) | 18.9M | — | — | **91.3%** median | n/a |
-
-Only the simulator — the one built from the published description rather than observed — reaches the redundancy the thesis needs. **The two conditions most like the thesis's own premise, concurrent sessions and a delegating coordinator, produced the least of it.**
-
-And the last row is the one that reframes everything.
-
-**Cross-session redundancy: 13.0%.** Sharing rollups across eight agents' worth of overlapping questions eliminated 3 of 23 per-session anchors.
+📉 **[Read the findings](https://gpatwa.github.io/agent-data-observability/)**
 
 ---
 
-## The six claims, and how each died
+## The correction
 
-**1. Agents waste most of their queries on speculation that never reaches the answer.** *Refuted.*
-The simulated agent used 4 of 93 results. Real agents used **34 of 41** across eight sessions, and this is verified rather than self-reported — see "Verifying citations" below. One session out of eight (`refunds`, 3/9 grounded) showed real waste; it is the exception, not the pattern.
+The published measurement is specific. From the EPIC Lab paper: the BIRD text-to-SQL benchmark, **50 independent attempts per task**, redundancy defined as *"the proportion of distinct sub-expressions relative to total sub-expressions across multiple agent attempts."*
 
-**2. Cross-session sharing is where the redundancy really lives.** *Too small to build on.*
-This was the strongest surviving reframe after the single-agent result: no agent need be wasteful, only for different people to ask related questions of the same tables. Eight agents asking deliberately overlapping questions about the same two tables and date range yielded **13%**. Materialization still helps — 20 anchors serve 25 queries — but that is a normal data-warehouse optimization, not an agent-specific one.
+Everything I ran differed on **both** axes:
 
-**3. Weaker models will fan out, and cheap intelligence means weak models at scale.** *Refuted.*
-This was the strongest theoretical argument, and directly what "intelligence is free" implies. Haiku 4.5 on the identical question issued **5 queries to Opus's 6**, with the same tight investigative structure. No fan-out.
+| | The published claim | What I measured first |
+|---|---|---|
+| Setup | N agents, **same** task | agents on **different** questions |
+| Unit | **sub-expressions** in the plan | **whole queries** |
+| Verdict | 10–20% distinct | "42.9%, doesn't reproduce" |
 
-**4. You are paying a warehouse to watch an LLM think.** *An artifact of measuring one agent.*
-True for a lone agent on a dedicated warehouse: 96.7% of the bill was idle. But with **8 concurrent agents sharing one warehouse, idle fell to 23.7%** — 851 of 1116 billed seconds were productive. Agents' think-time gaps interleave. The finding was real and the conclusion was wrong.
+So I refuted a neighbouring claim and reported it as the claim. Running it properly, with 8 agents on one question:
 
-**5. A coordinator delegating to parallel subagents will duplicate work.** *Refuted — and it went the other way.*
-This was the thesis's best remaining home: independent investigators, no shared context, each re-deriving what the others already computed. The coordinator issued 25 queries across delegated subagents and produced **9.1% redundancy — the lowest of any condition tested**, with 25/25 results grounded in the answer. Delegation bought *more distinct* work, not duplicated work, because each subagent was handed a genuinely different angle.
+| Level | Distinct | Reading |
+|---|---|---|
+| Whole queries, exact SQL | 54/55 = **98.2%** | essentially no repetition |
+| Whole queries, AST-normalized | 51/55 = **92.7%** | still none |
+| **Sub-expressions (all)** | 74/419 = **17.7%** | **massive sharing** |
 
-**6. A wide schema will make agents flail.** *Partly true, and it doesn't help.*
-Burying `orders`/`refunds` in 120 plausible decoy tables and withholding the schema nearly tripled query count, 6 → **17**. But the extra queries were `information_schema` lookups, and redundancy among *servable* queries was **42.9% — identical to the narrow-schema run**. Schema discovery is real traffic that a rollup cache cannot serve; it is cacheable only in the trivial sense that a catalog is static.
+Broken out by sub-plan piece:
 
-## The baseline that changes the conclusion
+| Piece | Total | Distinct | Distinct % |
+|---|---|---|---|
+| table scan | 47 | 2 | **4.3%** |
+| filter predicate | 115 | 13 | **11.3%** |
+| measure (`sum(x)`, `count(*)`) | 117 | 10 | **8.5%** |
+| grouping | 46 | 10 | 21.7% |
+| filtered scan | 47 | 12 | 25.5% |
+| whole aggregate | 47 | 27 | 57.4% |
 
-Every number above was measured on agent traffic, with nothing to compare it against. [Redset](https://github.com/amazon-science/redset) — Amazon's published trace of real Amazon Redshift production fleets — provides the missing control.
+**Both readings are true simultaneously**, and that is the actual finding. Eight agents asked the same question 55 different ways — but underneath, they scanned the same table with the same 13 predicates computing the same 10 measures. The redundancy is entirely *below* the level of the query.
 
-Scored with **this repo's own metric** (`1 - distinct/total`) over **18.9M SELECT queries across 20 production clusters**:
+Reproduce: `node src/same-task.mjs --attempts 8`. Saved output: [`docs/runs/same-task-report.txt`](docs/runs/same-task-report.txt).
 
-| | Redundancy |
-|---|---|
-| Median cluster | **91.3%** |
-| p25 – p75 | 71.7% – 96.6% |
-| Range | 58.1% – 100% |
-| Clusters above 80% | **70%** |
+## What that implies
 
-Against agents at 0–42.9%, and a delegating coordinator at 9.1%.
+**Result caching cannot capture this.** At 92.7% distinct whole queries, a cache keyed on the query — which is what Redshift, Snowflake and every LLM gateway ship — hits almost nothing. The prize needs **multi-query optimization, shared scans and partial-result reuse**, which is exactly what the paper proposes and what I spent six conditions arguing wasn't needed.
 
-**So the deduplication prize is real, and it is enormous — it just does not belong to agents.** It belongs to the human dashboards and scheduled pipelines the warehouse is already running, where the same queries repeat by construction. Redshift ships result caching for exactly this reason (`was_cached` is a column in the trace).
+It also explains the human/pipeline baseline below rather than contradicting it. Those workloads repeat *whole queries*; agents repeat *fragments*. They need different machinery.
 
-That inverts the original thesis rather than merely refuting it. Building agent-specific query deduplication means **optimizing the least redundant traffic in the warehouse.** An agent investigating a question asks a sequence of different questions; a dashboard asks the same one every fifteen minutes forever.
+## Findings that still stand
 
-Reproduce with `npm run baseline` (streams from S3, stores nothing locally). Saved output: [`docs/runs/redset-baseline.txt`](docs/runs/redset-baseline.txt).
+These were measured correctly and are unaffected — they are about different questions, not the same task:
 
-**Caveats, and they matter:**
-- Redset carries **no SQL text**, so the shape/subsumption analysis cannot run on it. `feature_fingerprint` is "a proxy for query-likeness, not based on text" — closest to this repo's `ast_hash` tier, but not the same function. The comparison is like-for-like in *metric definition*, not in *fingerprint definition*.
-- It is Redshift, 2024, human + scheduled-pipeline traffic. Scheduled ETL repeats by design, and that is part of the point — but it means these are different *kinds* of workload, not the same workload with different drivers.
-- 20 of 200 provisioned instances, `SELECT` only, clusters with ≥100 queries.
-- **Redset is CC BY-NC 4.0 — non-commercial use only.** Attribute Amazon; do not reuse these numbers in a commercial product without checking the licence.
+- **Agents on different questions share little.** 8 concurrent sessions on overlapping-but-distinct questions: 13% cross-session redundancy at whole-query level. A delegating coordinator: 9.1%.
+- **Agents waste little.** 34 of 41 results across eight sessions reached the answer, verified by value-grounding rather than self-report. 25/25 for the coordinator.
+- **Weaker models do not fan out.** Haiku 4.5 issued 5 queries to Opus 5's 6 on an identical question.
+- **The idle-tax finding was an artifact of n=1.** 96.7% of a lone agent's bill is idle warehouse time; with 8 concurrent agents sharing a warehouse it falls to **23.7%**.
+- **Human/pipeline traffic repeats whole queries heavily.** [Redset](https://github.com/amazon-science/redset) — 18.9M production Redshift SELECTs across 20 clusters — scored with this repo's metric: **91.3% median** redundancy, 70% of clusters above 80%. (CC BY-NC 4.0, attributed to Amazon.)
 
-## What survived
+## What survived as a tool
 
-The **trace primitive**. Query lineage, per-agent cost attribution, and verified answer-grounding all reconstruct cleanly from a log the warehouse already writes, with nothing in the data path. `cost per resolved task` — the number that decides whether an agent deployment survives budget review — becomes measurable where it wasn't before.
-
-That's an observability tool, not an optimization platform. **The optimization layer in this repo is measured, small, and deliberately not built out further.**
+The **trace primitive**. Query lineage, per-agent cost attribution, and verified answer-grounding all reconstruct from a log the warehouse already writes, with nothing in the data path. On Snowflake it is simpler still — trace context rides in the native `QUERY_TAG`, so there is no log parsing at all.
 
 ---
 
 ## How it works
 
-Trace context is injected as a [sqlcommenter](https://google.github.io/sqlcommenter/)-style SQL comment. The warehouse logs it verbatim. The plan tree is reconstructed offline.
+Trace context is injected as a [sqlcommenter](https://google.github.io/sqlcommenter/)-style SQL comment; the warehouse logs it verbatim; the plan tree is reconstructed offline.
 
 ```
 2026-07-28 23:41:07.882 PDT [16233] LOG:  statement:
@@ -99,145 +79,82 @@ Trace context is injected as a [sqlcommenter](https://google.github.io/sqlcommen
   SELECT date_trunc('month', order_date), region, sum(amount) FROM orders GROUP BY 1, 2
 ```
 
-Zero added latency, zero interception, nothing to trust. For real agents the warehouse is exposed as a single `run_sql` MCP tool, and lineage is **self-declared** — the tool asks the model for `intent` and `follows_from`.
-
 ### Verifying citations, not trusting them
 
-`used_downstream` — did this query's result reach the answer? — is the field the whole waste analysis rests on, and the obvious implementation (ask the agent) is the agent grading its own homework. So it is checked against evidence: scalar values from each result set are matched against the final answer, with numeric tolerance for the rounding models do in prose (`$319.9M` for `319875432.11`).
-
-It catches errors in both directions. Haiku claimed 3 queries and was grounded in 4 — one query it used but never claimed. Opus claimed 6 and all 6 were grounded, 5 of them by a value no other query produced.
-
----
+Whether a query's result reached the answer is the field the waste analysis rests on, and asking the agent is the agent grading its own homework. Scalar values from each result are matched against the answer text with numeric tolerance for the rounding models do in prose. It catches errors both ways: one agent claimed 3 queries and had used 4; another claimed 6 and had used 6.
 
 ## Run it
 
-Requires Node 20+, a local PostgreSQL (`initdb`/`pg_ctl`/`psql` on PATH), and — for real agents — an authenticated `claude` CLI.
+Node 20+, local PostgreSQL, and an authenticated `claude` CLI.
 
 ```bash
 npm install
-npm test                  # 31 unit tests, no database needed
-./scripts/demo.sh         # seeds 4.4M rows, runs the simulated agent
-node src/real-agent.mjs "Why did revenue drop in July 2026?"
-node src/real-agent.mjs "..." --model claude-haiku-4-5 --tag haiku
-node src/real-agent.mjs "..." --wide --tag wide        # 120-table schema, hidden
-node src/real-agent.mjs "..." --subagents --tag coord  # delegating coordinator
-node src/cross-session.mjs --concurrency 4            # 8 agents, ~$2 of LLM spend
+npm test                                        # 37 unit tests, no database
+npm run test:e2e                                # log -> trace pipeline, real Postgres
+./scripts/demo.sh                               # simulated agent, 4.4M rows
 
-psql -f seed-wide.sql   # adds the 120 decoy tables (needed for --wide)
+node src/same-task.mjs --attempts 8             # THE REPLICATION
+node src/real-agent.mjs "..."                   # one agent, one question
+node src/real-agent.mjs "..." --subagents       # delegating coordinator
+node src/real-agent.mjs "..." --wide            # 120-table schema, hidden
+node src/cross-session.mjs --concurrency 4      # 8 agents, different questions
+npm run baseline                                # Redset human/pipeline baseline
 ```
 
-The demo creates a throwaway cluster on port 55432; it does not touch an existing Postgres instance. Raw output from every run described above is in [`docs/runs/`](docs/runs/).
+Snowflake pilot (measured rather than modelled cost): [`docs/SNOWFLAKE.md`](docs/SNOWFLAKE.md).
 
 ---
 
-## What I got wrong along the way
+## What I got wrong
 
-These are in the repo history, and they are the most useful part of it.
+The most useful part of this repo. Nine bugs and one framing error; **most failed silently, and four moved a headline number in the direction I wanted.**
 
-- **Applied the simulator's 100× think-time dilation to a real trace.** Reported a 2708-second task with 7 warehouse resumes; the truth was 27 seconds and 1 resume. Dilation is now an explicit CLI argument defaulting to 1.
-- **Substring-matched numeric values.** Postgres returns `numeric` as a string, so result values were compared as text against prose. `"69.33124..."` never appears in an answer that says `$69.33`, so grounding was under-reported as 3/6 when it was really 6/6.
-- **Regex-"parsed" SQL.** The original extractor could not read `GROUP BY 1, 2`, `date_trunc()`, casts, or aliases — exactly what real agents write — and emitted dimensions literally named `"1"` and `"2"`. Every covering-set number computed on real SQL before [`src/shape.mjs`](src/shape.mjs) was noise.
-- **Divided by the wrong denominator.** Reported "51% dedup" by counting queries the parser *couldn't model* as deduplicated. Against queries the anchors can actually serve, it is 20%.
-- **Named the subagent tool `Task` instead of `Agent`.** The coordinator condition ran with delegation silently disabled — `--allowedTools` does not error on an unknown tool name, so the model simply never delegated and the run looked like a perfectly valid single-agent trace. Caught only by checking backend connections and turn count against expectation, then probing which tool name actually spawns subagents. The first coordinator result was invalid and was rerun.
-- **Line-anchored the citation regex.** Models write `**CITED: q1, q4**`; a `/^CITED:/` scored that run as citing nothing.
-
-Every one of these moved a headline number, and three of them moved it in the flattering direction.
-
----
-
-## Not production software
-
-This is a measurement harness. It is **not** ready to point at a production warehouse, and the gaps are structural rather than polish:
-
-- **Postgres only.** Snowflake pricing is *modelled*, not measured. No `QUERY_TAG` / BigQuery label adapters.
-- **The server is the database, not a wrapper.** It holds one `pg.Client` with a hardcoded connection and serialises every agent through it. A real deployment must wrap the warehouse client you already have.
-- **Result values are written to disk in plaintext** (`out/*-events.jsonl`) for the grounding check. That is warehouse data in a log file — a data-exfiltration surface and a compliance problem anywhere real.
-- **Only ~1 in 7 realistic analytics queries can be modelled at all.** Joins, CTEs, subqueries, `OR`, `HAVING` and window functions are all declined. Real analytics SQL is mostly joins, so the covering-set analysis would say almost nothing about a production workload.
-- **No authentication, multi-tenancy, quotas, or retention.** Trace context is an unauthenticated SQL comment — an agent can forge its own `intent` and `follows_from`, so this cannot underpin chargeback.
-- **Events are JSONL on local disk** and log parsing reads whole files into memory.
-
-The read-only guard was also genuinely broken until recently — it pattern-matched the start of the string, so `select 1; drop table x` passed and the DROP executed. It now parses and requires exactly one SELECT, and the session sets `default_transaction_read_only`. **Even so, run it against a SELECT-only database role.** An application-layer allowlist in front of a read-write connection is not a security boundary.
-
-## The Snowflake run, and what it exposed
-
-A real agent against Snowflake's TPC-H sample schema — a dataset I did not build,
-with no anomaly planted in it and no answer hidden for the agent to find. It
-issued 4 queries, used 3, and concluded that revenue is uniform across all 25
-nations *because that is a property of TPC-H's synthetic generator* rather than
-inventing a business narrative. Good analysis, and the strongest validity check
-in this repo: every other condition used questions I wrote against data I seeded.
-
-Then I fetched the SQL it actually wrote and ran the shape extractor over it:
-
-| Query | Joins | Modellable? |
-|---|---|---|
-| `q1` revenue by nation | 3 | **declined** |
-| `q2` date range of orders | 0 | modelled |
-| `q3` revenue by nation and year | 3 | **declined** |
-| `q4` share and rank shift across years | 4 | **declined** |
-
-**1 of 4 — and it is the throwaway.** The three the analysis cannot see are the
-three that answer the question; the one it can see is a `min/max` date check.
-
-This is the sharpest statement of the limitation recorded elsewhere in this
-README as "~1 in 7 realistic queries". On genuine analytics work the
-covering-set analysis is blind to precisely the queries that matter, because
-real analytics is join-heavy and the extractor declines joins rather than
-mis-parsing them. **Every redundancy figure in this repo is therefore computed
-over single-table aggregate queries** — which the two-table Postgres fixture
-made abundant and a real warehouse does not.
-
-That does not change the direction of the finding (agents at 0–43% against a
-91.3% human/pipeline baseline), but it does bound what the number describes.
-Fixing it means sqlglot with join-aware lineage, which is the restart plan
-below.
-
-## Prior art, and what I would use instead
-
-I hand-rolled two things that already have standards. If you are evaluating this repo, you should know I am aware of that rather than assume I wasn't.
-
-**[OpenTelemetry database semantic conventions](https://opentelemetry.io/docs/specs/semconv/db/database-spans/) + [sqlcommenter](https://opentelemetry-python.readthedocs.io/en/latest/examples/sqlcommenter/README.html).** This is what `src/context.mjs` and `src/trace.mjs` are, reinvented. The OTel spec covers `db.query.text`, sanitization, query summarization, context propagation and sqlcommenter explicitly. My `/*agenttrace:t=…,s=…,p=…*/` is a nonstandard spelling of `/*traceparent='00-…'*/`. Using the spec would delete the log parser, the span assembler and the report renderer, because any OTel backend — Tempo, Honeycomb, Datadog, Jaeger — renders the trace for free. The agent dimension is just span attributes.
-
-**[sqlglot](https://github.com/tobymao/sqlglot) instead of node-sql-parser.** 30+ dialects including Snowflake, Spark/Databricks and BigQuery, plus a transpiler, an optimizer and column-level lineage. The 1-in-7 modelling rate reported above is partly this repo's parser hitting its ceiling. sqlglot would raise it *and* provide multi-warehouse dialect support in the same move. It is Python, so it means a sidecar or a port.
-
-**[ADBC](https://arrow.apache.org/adbc/current/index.html) for connecting many warehouses.** Vendor-neutral, Arrow-native, DB-API compliant so Ibis and SQLAlchemy sit on top of it; dbt Fusion standardized on it. [Ibis](https://ibis-project.org/) if you want to express a query once across backends rather than only connect to them.
-
-**Adjacent, but solving something else:** warehouse cost tools (Select.dev, Keebo, Espresso AI) optimize warehouses rather than query semantics and have no notion of which agent or reasoning step issued a query; MCP gateways (Snowflake's Cortex AI Gateway, MintMCP) govern access rather than economics. I could not find anything doing per-agent query lineage.
-
-**If I started again:** OTel + sqlcommenter for the trace, sqlglot for the shapes, and Snowflake `QUERY_TAG` joined to [`QUERY_ATTRIBUTION_HISTORY`](https://docs.snowflake.com/en/sql-reference/account-usage/query_attribution_history) for *measured* rather than modelled cost — which would also let me check the cost figures published here, with less code than they currently take.
+- **Measured the wrong unit and published a refutation.** Whole queries instead of sub-expressions, different questions instead of the same task. The finding inverted once corrected.
+- **`ALTER SESSION SET QUERY_TAG = ?` does not bind in Snowflake.** It set the tag to the literal `"?"` and returned success — an entire agent run produced untraceable queries with no error anywhere.
+- **A preflight that tested a different code path than production.** It wrote its own literal tag and reported "✓ round-trips" while every real query was tagged `?`. A check that doesn't exercise the real path is worse than no check.
+- **Named the subagent tool `Task` when it is `Agent`.** `--allowedTools` doesn't error on unknown names, so the coordinator condition ran with delegation silently disabled and looked like a valid trace.
+- **Regex-"parsed" SQL.** Couldn't read `GROUP BY 1, 2`, `date_trunc()`, casts or aliases, and emitted dimensions literally named `"1"`.
+- **Divided by the wrong denominator** — counted unmodellable queries as deduplicated. 51% → 20%.
+- **Applied the simulator's 100× time dilation to a real trace.** Reported 2708s and 7 warehouse resumes; truth was 27s and 1.
+- **Substring-matched numeric values.** Postgres returns `numeric` as a string, so `"69.33124…"` never matched an answer saying `$69.33`. Grounding under-reported 3/6 when it was 6/6.
+- **Line-anchored the citation regex** — models write `**CITED: q1**`, scored as citing nothing.
+- **A read-only guard that only checked the start of the string.** `select 1; drop table x` passed it and the DROP executed against a canary table.
 
 ## What this is not
 
-- **Small n.** One dataset, two models, six conditions, one run each. Not a study — a cheap screen.
-- **The dataset has a single planted cause.** Real investigations are messier and may fan out more.
-- **`unmodelled` is not zero.** The parser declined 12 of 41 real queries rather than guess. Excluding lowers reported coverage; mis-parsing would inflate it. Excluding is the honest failure, but it means coverage figures are lower bounds.
-- **Cost figures model Snowflake, run on Postgres.** Snowflake XS billing rules applied to real Postgres execution times. Treat the ratios as the finding, not the dollars.
+- **Small n.** 8 attempts, not the paper's 50. One dataset, two models.
+- **Sub-expressions are approximated** from the query shape, not decomposed from a real plan. The direction is clear; the exact percentage is not authoritative.
+- **The parser models ~1 query in 4–7 of real analytics.** On the Snowflake TPC-H run, 1 of 4 — and the modellable one was a `min/max` date check while the three that answered the question all had 3–4 joins. Joins, CTEs, subqueries, `OR` and `HAVING` are declined rather than mis-parsed.
+- **Not production software.** Postgres-oriented, result values written to disk in plaintext, no auth or multi-tenancy. See below.
+
+## Not production software
+
+- **The server is the database, not a wrapper.** One hardcoded client, serialising every agent.
+- **Result values are written to `out/*.jsonl` in plaintext** for grounding — an exfiltration surface anywhere real.
+- **No authentication, multi-tenancy, quotas or retention.** Trace context is an unauthenticated SQL comment, so an agent can forge its own `intent` — it cannot underpin chargeback.
+- **Run it against a SELECT-only database role.** The application-layer guard is a second line, not a boundary.
+
+## Prior art, and what I would use instead
+
+- **[OpenTelemetry database semantic conventions](https://opentelemetry.io/docs/specs/semconv/db/database-spans/) + sqlcommenter** — what `context.mjs` and `trace.mjs` are, as a spec. Using it deletes the log parser and the span assembler, since any OTel backend renders the trace.
+- **[sqlglot](https://github.com/tobymao/sqlglot)** instead of node-sql-parser — 30+ dialects, an optimizer, and column-level lineage. This is what would lift the join ceiling above.
+- **[ADBC](https://arrow.apache.org/adbc/current/index.html) / [Ibis](https://ibis-project.org/)** for connecting many warehouses.
+- Warehouse cost tools (Select.dev, Keebo, Espresso AI) optimize warehouses, not query semantics; MCP gateways (Snowflake Cortex AI Gateway, MintMCP) govern access, not economics.
 
 ## Layout
 
 | Path | What it does |
 |---|---|
-| `src/context.mjs` | Trace context; sqlcommenter-style serialization |
-| `src/shape.mjs` | **AST-based** query shape, subsumption, candidate synthesis |
-| `src/fingerprint.mjs` | Exact/normalized hashing; re-exports shape.mjs |
-| `src/trace.mjs` | Log parsing, span reconstruction, Snowflake billing model |
-| `src/mcp-db-server.mjs` | MCP server exposing `run_sql`; injects trace context |
-| `src/real-agent.mjs` | Drives a real Claude Code agent headlessly |
-| `src/cross-session.mjs` | Fans out N agents; covering set across the union of traces |
+| `src/same-task.mjs` | **The replication** — N agents, one task, sub-expression redundancy |
+| `src/shape.mjs` | AST query shape, subsumption, candidate synthesis |
+| `src/trace.mjs` | Log parsing, span reconstruction, billing model |
+| `src/context.mjs` | Trace context, sqlcommenter-style |
+| `src/mcp-db-server.mjs` · `src/snowflake-mcp-server.mjs` | Traced `run_sql` tools |
+| `src/real-agent.mjs` · `src/snowflake-agent.mjs` | Drive real Claude Code agents |
 | `src/verify-citations.mjs` | Value-grounded citation verification |
-| `src/agent-sim.mjs` | Simulated naive agent — a deterministic fixture, not evidence |
-| `seed-wide.sql` | 120-table decoy schema for the wide-schema condition |
-| `test/` | 31 tests, weighted toward negative subsumption cases |
-
-## If you want to revive the thesis
-
-Both conditions I thought most likely to revive it — a delegating coordinator and a 120-table schema — have now been run, and both came back negative. What remains untested, in order of promise:
-
-- **Genuinely ambiguous questions with no single cause.** Every run here had one planted answer to find.
-- **A much larger warehouse** where individual queries are slow enough that materialization pays for itself on latency alone, independent of redundancy.
-- **Agents with memory across sessions**, which might re-derive prior context rather than re-reading it.
-
-`node src/real-agent.mjs "<question>" [--wide] [--subagents] [--model X]` runs any of them.
+| `src/cross-session.mjs` | N agents, different questions |
+| `scripts/redset-baseline.sh` | Human/pipeline baseline from Redset |
+| `test/` | 37 unit tests + an end-to-end pipeline suite |
 
 ## License
 
