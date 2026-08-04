@@ -1,0 +1,25 @@
+
+> agent-data-observability@0.1.0 snowflake:cost
+> node src/snowflake-cost.mjs --hours 72
+
+── TAGGING (INFORMATION_SCHEMA, near real-time) ───────────────
+  tagged agent queries in last 72h   7
+  distinct traces                        1
+
+── MEASURED COST (ACCOUNT_USAGE, lagging) ─────────────────────
+  tagged queries in ACCOUNT_USAGE         7
+  with credit attribution                4
+
+  trace             queries   credits      measured cost
+  1c1081cfa25ef12f        4    0.029907        $0.0897
+
+── MEASURED vs MODELLED ───────────────────────────────────────
+  traces                                 1
+  total queries                          4
+  total credits                          0.029907
+  MEASURED cost per resolved task        $0.0897
+  modelled equivalent (Postgres runs)    $0.073   <- published figure
+
+  Ratio measured/modelled: 1.23x
+  A ratio far from 1.0 means the modelled numbers in the README and
+  on the landing page need correcting — that is the point of this run.

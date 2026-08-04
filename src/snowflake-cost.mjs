@@ -22,7 +22,10 @@ const arg = (name, dflt) => {
   return i > -1 ? process.argv[i + 1] : dflt;
 };
 
-const HOURS = Number(arg('hours', 6));
+// 72h by default: ACCOUNT_USAGE lags hours, and in practice the read happens
+// well after the run. A 6h default silently reported "no tagged queries" for a
+// run whose data was present the whole time.
+const HOURS = Number(arg('hours', 72));
 const CREDIT_PRICE = Number(arg('credit-price', 3.0)); // Standard edition list
 const usd = (n) => `$${n.toFixed(4)}`;
 
@@ -33,7 +36,12 @@ async function main() {
   const live = await execute(conn, `
     select QUERY_ID, QUERY_TAG, TOTAL_ELAPSED_TIME, BYTES_SCANNED, WAREHOUSE_NAME
     from table(information_schema.query_history(
-      end_time_range_start => dateadd('hour', -${HOURS}, current_timestamp())))
+      end_time_range_start => dateadd('hour', -${HOURS}, current_timestamp()),
+      -- RESULT_LIMIT defaults to 100 and the WHERE below filters AFTER the
+      -- function returns, so tagged queries beyond the 100 most recent were
+      -- invisible. This reported "0 tagged queries" for runs that had tagged
+      -- correctly.
+      result_limit => 10000))
     where QUERY_TAG like '%"t":%'
       and QUERY_TAG not like '%preflight%'
     order by START_TIME desc

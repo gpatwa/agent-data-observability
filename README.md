@@ -63,6 +63,22 @@ These were measured correctly and are unaffected — they are about different qu
 - **The idle-tax finding was an artifact of n=1.** 96.7% of a lone agent's bill is idle warehouse time; with 8 concurrent agents sharing a warehouse it falls to **23.7%**.
 - **Human/pipeline traffic repeats whole queries heavily.** [Redset](https://github.com/amazon-science/redset) — 18.9M production Redshift SELECTs across 20 clusters — scored with this repo's metric: **91.3% median** redundancy, 70% of clusters above 80%. (CC BY-NC 4.0, attributed to Amazon.)
 
+## Measured cost, at last
+
+Every dollar figure this project published was **modelled** — Snowflake billing rules applied to Postgres execution times. The Snowflake pilot replaces that with Snowflake's own `QUERY_ATTRIBUTION_HISTORY`:
+
+| | Per resolved task |
+|---|---|
+| **Measured** (4 attributed queries, 0.029907 credits @ $3) | **$0.0897** |
+| Modelled (published figure) | $0.073 |
+| Ratio | **1.23×** |
+
+The modelled number was **low by 23%** — the right order of magnitude, wrong in the direction of understating cost. Good enough that the ratios in this repo stand; not good enough to quote as a dollar figure without this caveat.
+
+Reproduce: `npm run snowflake:cost -- --hours 72`. Saved: [`docs/runs/snowflake-measured-cost.txt`](docs/runs/snowflake-measured-cost.txt).
+
+Only 4 of 7 tagged queries had credits attributed — Snowflake attributes compute to queries that consumed meaningful warehouse time, so cheap metadata lookups contribute nothing. n=1 trace, TPC-H on an XS warehouse.
+
 ## What survived as a tool
 
 The **trace primitive**. Query lineage, per-agent cost attribution, and verified answer-grounding all reconstruct from a log the warehouse already writes, with nothing in the data path. On Snowflake it is simpler still — trace context rides in the native `QUERY_TAG`, so there is no log parsing at all.
