@@ -117,7 +117,12 @@ node src/cross-session.mjs --concurrency 4      # 8 agents, different questions
 npm run baseline                                # Redset human/pipeline baseline
 ```
 
-Snowflake pilot (measured rather than modelled cost): [`docs/SNOWFLAKE.md`](docs/SNOWFLAKE.md).
+```bash
+npm run snowflake:check                         # Snowflake, agent authors SQL
+npm run databricks:check                        # Databricks Genie, GENIE authors SQL
+```
+
+Warehouse pilots: [`docs/SNOWFLAKE.md`](docs/SNOWFLAKE.md) (measured cost) and [`docs/DATABRICKS.md`](docs/DATABRICKS.md) (managed connection, untested against a live workspace).
 
 ---
 
@@ -166,6 +171,7 @@ The most useful part of this repo. Nine bugs and one framing error; **most faile
 | `src/trace.mjs` | Log parsing, span reconstruction, billing model |
 | `src/context.mjs` | Trace context, sqlcommenter-style |
 | `src/mcp-db-server.mjs` · `src/snowflake-mcp-server.mjs` | Traced `run_sql` tools |
+| `src/databricks-genie-mcp-server.mjs` | Traced `ask_genie` — verification over a connection we don't own |
 | `src/real-agent.mjs` · `src/snowflake-agent.mjs` | Drive real Claude Code agents |
 | `src/verify-citations.mjs` | Value-grounded citation verification |
 | `src/cross-session.mjs` | N agents, different questions |

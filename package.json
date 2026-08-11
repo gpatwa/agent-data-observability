@@ -12,7 +12,8 @@
     "baseline": "./scripts/redset-baseline.sh",
     "snowflake:check": "node src/snowflake-check.mjs",
     "snowflake:cost": "node src/snowflake-cost.mjs",
-    "snowflake:keypair": "./scripts/snowflake-keypair.sh"
+    "snowflake:keypair": "./scripts/snowflake-keypair.sh",
+    "databricks:check": "node src/databricks-check.mjs"
   },
   "keywords": [
     "ai-agents",

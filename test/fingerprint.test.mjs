@@ -270,3 +270,68 @@ test('traceTag strips quotes and backslashes from model-authored intent', async 
   assert.ok(tag.includes('"t":"abc"'), 'trace id must still be present');
   assert.ok(tag.length <= 2000, 'must respect the QUERY_TAG length cap');
 });
+
+// --- Databricks Genie response parsing -------------------------------------
+// The network path cannot be tested without a workspace, but the parsing can —
+// and response-shape handling is exactly where this adapter would break.
+
+test('rowsFromResult normalises statement-execution shape to objects', async () => {
+  const { rowsFromResult } = await import('../src/databricks.mjs');
+  const result = {
+    statement_response: {
+      manifest: { schema: { columns: [{ name: 'nation' }, { name: 'revenue' }] } },
+      result: { data_array: [['FRANCE', '8960000.50'], ['CANADA', '8470000.25']] },
+    },
+  };
+  assert.deepEqual(rowsFromResult(result), [
+    { nation: 'FRANCE', revenue: '8960000.50' },
+    { nation: 'CANADA', revenue: '8470000.25' },
+  ]);
+});
+
+test('rowsFromResult returns empty rather than throwing on an unexpected shape', async () => {
+  const { rowsFromResult } = await import('../src/databricks.mjs');
+  assert.deepEqual(rowsFromResult(null), []);
+  assert.deepEqual(rowsFromResult({}), []);
+  assert.deepEqual(rowsFromResult({ statement_response: { result: { data_array: [[1]] } } }), []);
+});
+
+test('extractAttachments finds the generated SQL and the attachment id', async () => {
+  const { extractAttachments } = await import('../src/databricks.mjs');
+  const msg = {
+    attachments: [
+      { text: { content: 'France leads narrowly.' } },
+      { attachment_id: 'att_123', query: { query: 'SELECT n_name, sum(l_extendedprice) FROM ...', description: 'revenue by nation' } },
+    ],
+  };
+  const a = extractAttachments(msg);
+  assert.equal(a.attachmentId, 'att_123');
+  assert.match(a.sql, /^SELECT n_name/);
+  assert.equal(a.text, 'France leads narrowly.');
+  assert.equal(a.description, 'revenue by nation');
+});
+
+test('extractAttachments tolerates a narrative-only answer with no query', async () => {
+  const { extractAttachments } = await import('../src/databricks.mjs');
+  const a = extractAttachments({ attachments: [{ text: { content: 'I need more detail.' } }] });
+  assert.equal(a.sql, null);
+  assert.equal(a.attachmentId, null);
+  assert.equal(a.text, 'I need more detail.');
+});
+
+test('extractAttachments handles a message with no attachments at all', async () => {
+  const { extractAttachments } = await import('../src/databricks.mjs');
+  const a = extractAttachments({});
+  assert.deepEqual(a, { text: null, sql: null, attachmentId: null, description: null });
+});
+
+test('Genie-generated SQL still feeds the shape extractor', async () => {
+  const { extractAttachments } = await import('../src/databricks.mjs');
+  const a = extractAttachments({
+    attachments: [{ attachment_id: 'a1', query: { query: "select region, sum(amount) from orders where order_date >= '2026-07-01' group by 1" } }],
+  });
+  const s = shape(a.sql);
+  assert.ok(s, 'Genie SQL must be modellable — this is what preserves sub-expression analysis');
+  assert.deepEqual(s.groupby, ['region']);
+  assert.deepEqual(s.measures, ['sum(amount)']);
+});
