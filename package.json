@@ -13,7 +13,8 @@
     "snowflake:check": "node src/snowflake-check.mjs",
     "snowflake:cost": "node src/snowflake-cost.mjs",
     "snowflake:keypair": "./scripts/snowflake-keypair.sh",
-    "databricks:check": "node src/databricks-check.mjs"
+    "databricks:check": "node src/databricks-check.mjs",
+    "databricks:env": "./scripts/databricks-env.sh"
   },
   "keywords": [
     "ai-agents",
