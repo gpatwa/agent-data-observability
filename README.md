@@ -53,6 +53,8 @@ Reproduce: `adobs-same-task --attempts 8`. Saved output: [`docs/runs/same-task-r
 
 It also explains the human/pipeline baseline below rather than contradicting it. Those workloads repeat *whole queries*; agents repeat *fragments*. They need different machinery.
 
+**That machinery is now built and measured, not just proposed.** [`docs/PHASE2.md`](docs/PHASE2.md) materializes the covering-set rollups this repo's reports have always recommended into a local DuckDB cache, then answers the queries they cover by direct row selection — no re-derivation, so a wrong answer isn't possible by construction, only a declined one. Replayed against the simulated-agent demo trace: 44 of 89 aggregate queries answered from 9 materialized rollups, all 44 verified byte-for-byte against a fresh Postgres execution, 44 real warehouse round-trips avoided, ~30x measured (not modelled) latency.
+
 ## Findings that still stand
 
 These were measured correctly and are unaffected — they are about different questions, not the same task:
@@ -115,6 +117,7 @@ adobs-real-agent "..." --subagents              # delegating coordinator
 adobs-real-agent "..." --wide                   # 120-table schema, hidden
 adobs-cross-session --concurrency 4             # 8 agents, different questions
 ./scripts/redset-baseline.sh                    # Redset human/pipeline baseline
+adobs-phase2-demo                               # materialize + replay Phase 2, measured before/after
 ```
 
 ```bash
@@ -177,6 +180,8 @@ The most useful part of this repo. Nine bugs and one framing error; **most faile
 | `agent_data_observability/real_agent.py` · `agent_data_observability/snowflake_agent.py` · `agent_data_observability/duckdb_agent.py` | Drive real Claude Code agents |
 | `agent_data_observability/verify_citations.py` | Value-grounded citation verification |
 | `agent_data_observability/cross_session.py` | N agents, different questions |
+| `agent_data_observability/materialize.py` · `agent_data_observability/tracedb.py` | **Phase 2** — materialize covering-set rollups into DuckDB, serve queries from them (`TracedClient(mode="intercept")`) |
+| `agent_data_observability/phase2_demo.py` | Replays a completed trace through Phase 2 and reports measured before/after |
 | `scripts/redset-baseline.sh` | Human/pipeline baseline from Redset |
 | `tests/` | Unit tests + an end-to-end pipeline suite (pytest) |
 

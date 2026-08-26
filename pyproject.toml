@@ -31,6 +31,7 @@ adobs-databricks-agent = "agent_data_observability.databricks_agent:main"
 adobs-verify-citations = "agent_data_observability.verify_citations:main"
 adobs-duckdb-check = "agent_data_observability.duckdb_check:main"
 adobs-duckdb-agent = "agent_data_observability.duckdb_agent:main"
+adobs-phase2-demo = "agent_data_observability.phase2_demo:main"
 
 [build-system]
 requires = ["hatchling"]

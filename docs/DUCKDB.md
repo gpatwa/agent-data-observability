@@ -72,3 +72,7 @@ adobs-duckdb-agent "Which nation generates the most revenue?"
 - Result values are still written to `out/*.jsonl` in plaintext for the
   answer-grounding check, same caveat as every other adapter — see the "Not
   production software" section of the README.
+
+Not to be confused with [`PHASE2.md`](PHASE2.md), which also uses DuckDB but
+for a different job — a local materialized-rollup cache in front of the
+Postgres condition, not a warehouse pilot in its own right.
