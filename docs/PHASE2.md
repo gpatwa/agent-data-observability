@@ -74,6 +74,9 @@ speedup                            ~30x
 
 ## Using it directly
 
+`pg_conn` must be a psycopg connection using `row_factory=dict_row` —
+`MaterializedCache.materialize()` reads rows by column name.
+
 ```python
 from agent_data_observability.shape import covering_set
 from agent_data_observability.materialize import MaterializedCache

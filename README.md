@@ -161,7 +161,7 @@ The most useful part of this repo. Nine bugs and one framing error; **most faile
 
 ## Prior art, and what I would use instead
 
-- **[OpenTelemetry database semantic conventions](https://opentelemetry.io/docs/specs/semconv/db/database-spans/) + sqlcommenter** — what `context.mjs` and `trace.mjs` are, as a spec. Using it deletes the log parser and the span assembler, since any OTel backend renders the trace.
+- **[OpenTelemetry database semantic conventions](https://opentelemetry.io/docs/specs/semconv/db/database-spans/) + sqlcommenter** — what `context.py` and `trace.py` are, as a spec. Using it deletes the log parser and the span assembler, since any OTel backend renders the trace.
 - **[sqlglot](https://github.com/tobymao/sqlglot)** — now what this repo uses (it moved to Python for exactly this). 30+ dialects, a real AST, and column-level lineage; on the simulated-agent demo run it modelled 89/93 query shapes, up from the ~1-in-4 ceiling the old regex/node-sql-parser approach hit on real analytics SQL.
 - **[ADBC](https://arrow.apache.org/adbc/current/index.html) / [Ibis](https://ibis-project.org/)** for connecting many warehouses.
 - Warehouse cost tools (Select.dev, Keebo, Espresso AI) optimize warehouses, not query semantics; MCP gateways (Snowflake Cortex AI Gateway, MintMCP) govern access, not economics.
