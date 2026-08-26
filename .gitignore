@@ -5,6 +5,15 @@ out/*
 *.log
 .DS_Store
 
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
 # keep saved run evidence despite the *.log rule above
 !docs/runs/*.log
 .pgdata-e2e/

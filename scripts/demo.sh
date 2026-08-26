@@ -11,10 +11,13 @@ PGDATA="$ROOT/.pgdata"
 PORT=55432
 LOG="$PGDATA/pglog/queries.log"
 
-for bin in initdb pg_ctl psql node; do
+for bin in initdb pg_ctl psql; do
   command -v "$bin" >/dev/null || { echo "error: '$bin' not found on PATH" >&2; exit 1; }
 done
-[ -d "$ROOT/node_modules/pg" ] || { echo "error: run 'npm install' first" >&2; exit 1; }
+PYTHON="$ROOT/.venv/bin/python3"
+[ -x "$PYTHON" ] || PYTHON="python3"
+"$PYTHON" -c "import agent_data_observability" 2>/dev/null || {
+  echo "error: run 'uv pip install -e \".[dev]\"' (or 'pip install -e \".[dev]\"') first" >&2; exit 1; }
 
 cleanup() { pg_ctl -D "$PGDATA" stop -m fast >/dev/null 2>&1 || true; }
 trap cleanup EXIT
@@ -51,8 +54,9 @@ psql -h localhost -p $PORT -U postgres -d postgres -q -f "$ROOT/seed.sql" 2>&1 |
 
 echo "==> running simulated agent"
 : > "$LOG"
-node "$ROOT/src/agent-sim.mjs"
+"$PYTHON" -m agent_data_observability.agent_sim
 
 echo
-# 100 = the simulator's think-time compression factor (see src/config.mjs).
-node "$ROOT/src/assemble.mjs" "$LOG" "$ROOT/out/agent-events.jsonl" 100
+# 100 = the simulator's think-time compression factor (see
+# agent_data_observability/config.py).
+"$PYTHON" -m agent_data_observability.assemble "$LOG" "$ROOT/out/agent-events.jsonl" 100

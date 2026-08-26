@@ -2,7 +2,7 @@
 # End-to-end test: brings up a throwaway Postgres with statement logging,
 # runs the pipeline test against it, tears it down.
 #
-# Separate from `npm test` on purpose — the unit tests must stay database-free
+# Separate from `pytest` on purpose — the unit tests must stay database-free
 # so they run anywhere in under a second.
 set -euo pipefail
 
@@ -14,7 +14,7 @@ PORT="${E2E_PORT:-55433}"
 export E2E_LOG_PATH="$PGDATA/pglog/queries.log"
 export PGPORT="$PORT"
 
-for bin in initdb pg_ctl node; do
+for bin in initdb pg_ctl; do
   command -v "$bin" >/dev/null || { echo "error: '$bin' not on PATH" >&2; exit 1; }
 done
 
@@ -50,4 +50,6 @@ pg_isready -h localhost -p "$PORT" >/dev/null || {
   echo "postgres failed to start:" >&2; tail -30 "$PGDATA/startup.log" "$PGDATA/pglog/queries.log" >&2 2>/dev/null; exit 1; }
 
 echo "==> running end-to-end pipeline test"
-node --test "$ROOT/test/e2e/**/*.test.mjs"
+PYTEST="$ROOT/.venv/bin/pytest"
+[ -x "$PYTEST" ] || PYTEST="pytest"
+"$PYTEST" "$ROOT/tests/test_e2e_pipeline.py" -v

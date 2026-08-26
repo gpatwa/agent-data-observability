@@ -6,7 +6,7 @@
 // mode and, with no viewport meta, lay out at desktop width on a phone.
 //
 // One source, two destinations: the fragment stays publishable as-is, and this
-// emits the standalone version. Run: npm run build:pages
+// emits the standalone version. Run: node scripts/build-pages.mjs
 
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

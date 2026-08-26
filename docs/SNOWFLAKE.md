@@ -66,7 +66,7 @@ the resting state.
 ## 2. Check the connection
 
 ```bash
-npm run snowflake:check
+adobs-snowflake-check
 ```
 
 Confirms auth, prints account/region/warehouse/edition, verifies the TPC-H sample database is present, and checks whether `ACCOUNT_USAGE` is readable by your role. Runs one trivial query, so it costs a few seconds of warehouse time.
@@ -74,7 +74,7 @@ Confirms auth, prints account/region/warehouse/edition, verifies the TPC-H sampl
 ## 3. Run an agent against it
 
 ```bash
-node src/snowflake-agent.mjs "Which nations generate the most revenue, and has the mix shifted across the order years in the data?"
+adobs-snowflake-agent "Which nations generate the most revenue, and has the mix shifted across the order years in the data?"
 ```
 
 Same harness as the Postgres conditions — a real Claude Code agent whose only tool is a traced `run_sql`.
@@ -82,7 +82,7 @@ Same harness as the Postgres conditions — a real Claude Code agent whose only 
 ## 4. Read the measured cost (later, not immediately)
 
 ```bash
-npm run snowflake:cost
+adobs-snowflake-cost
 ```
 
 **This will show nothing useful straight after the run, and that is expected.** Snowflake's views lag:

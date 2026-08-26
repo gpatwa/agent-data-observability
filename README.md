@@ -45,7 +45,7 @@ Broken out by sub-plan piece:
 
 **Both readings are true simultaneously**, and that is the actual finding. Eight agents asked the same question 55 different ways — but underneath, they scanned the same table with the same 13 predicates computing the same 10 measures. The redundancy is entirely *below* the level of the query.
 
-Reproduce: `node src/same-task.mjs --attempts 8`. Saved output: [`docs/runs/same-task-report.txt`](docs/runs/same-task-report.txt).
+Reproduce: `adobs-same-task --attempts 8`. Saved output: [`docs/runs/same-task-report.txt`](docs/runs/same-task-report.txt).
 
 ## What that implies
 
@@ -75,7 +75,7 @@ Every dollar figure this project published was **modelled** — Snowflake billin
 
 The modelled number was **low by 23%** — the right order of magnitude, wrong in the direction of understating cost. Good enough that the ratios in this repo stand; not good enough to quote as a dollar figure without this caveat.
 
-Reproduce: `npm run snowflake:cost -- --hours 72`. Saved: [`docs/runs/snowflake-measured-cost.txt`](docs/runs/snowflake-measured-cost.txt).
+Reproduce: `adobs-snowflake-cost --hours 72`. Saved: [`docs/runs/snowflake-measured-cost.txt`](docs/runs/snowflake-measured-cost.txt).
 
 Only 4 of 7 tagged queries had credits attributed — Snowflake attributes compute to queries that consumed meaningful warehouse time, so cheap metadata lookups contribute nothing. n=1 trace, TPC-H on an XS warehouse.
 
@@ -101,25 +101,25 @@ Whether a query's result reached the answer is the field the waste analysis rest
 
 ## Run it
 
-Node 20+, local PostgreSQL, and an authenticated `claude` CLI.
+Python 3.11+, local PostgreSQL, and an authenticated `claude` CLI.
 
 ```bash
-npm install
-npm test                                        # 37 unit tests, no database
-npm run test:e2e                                # log -> trace pipeline, real Postgres
+uv venv && uv pip install -e ".[dev]"           # or: pip install -e ".[dev]"
+pytest                                          # unit tests, no database
+./scripts/e2e.sh                                # log -> trace pipeline, real Postgres
 ./scripts/demo.sh                               # simulated agent, 4.4M rows
 
-node src/same-task.mjs --attempts 8             # THE REPLICATION
-node src/real-agent.mjs "..."                   # one agent, one question
-node src/real-agent.mjs "..." --subagents       # delegating coordinator
-node src/real-agent.mjs "..." --wide            # 120-table schema, hidden
-node src/cross-session.mjs --concurrency 4      # 8 agents, different questions
-npm run baseline                                # Redset human/pipeline baseline
+adobs-same-task --attempts 8                    # THE REPLICATION
+adobs-real-agent "..."                          # one agent, one question
+adobs-real-agent "..." --subagents              # delegating coordinator
+adobs-real-agent "..." --wide                   # 120-table schema, hidden
+adobs-cross-session --concurrency 4             # 8 agents, different questions
+./scripts/redset-baseline.sh                    # Redset human/pipeline baseline
 ```
 
 ```bash
-npm run snowflake:check                         # Snowflake, agent authors SQL
-npm run databricks:check                        # Databricks Genie, GENIE authors SQL
+adobs-snowflake-check                           # Snowflake, agent authors SQL
+adobs-databricks-check                          # Databricks Genie, GENIE authors SQL
 ```
 
 Warehouse pilots: [`docs/SNOWFLAKE.md`](docs/SNOWFLAKE.md) (measured cost) and [`docs/DATABRICKS.md`](docs/DATABRICKS.md) (managed connection, untested against a live workspace).
@@ -158,7 +158,7 @@ The most useful part of this repo. Nine bugs and one framing error; **most faile
 ## Prior art, and what I would use instead
 
 - **[OpenTelemetry database semantic conventions](https://opentelemetry.io/docs/specs/semconv/db/database-spans/) + sqlcommenter** — what `context.mjs` and `trace.mjs` are, as a spec. Using it deletes the log parser and the span assembler, since any OTel backend renders the trace.
-- **[sqlglot](https://github.com/tobymao/sqlglot)** instead of node-sql-parser — 30+ dialects, an optimizer, and column-level lineage. This is what would lift the join ceiling above.
+- **[sqlglot](https://github.com/tobymao/sqlglot)** — now what this repo uses (it moved to Python for exactly this). 30+ dialects, a real AST, and column-level lineage; on the simulated-agent demo run it modelled 89/93 query shapes, up from the ~1-in-4 ceiling the old regex/node-sql-parser approach hit on real analytics SQL.
 - **[ADBC](https://arrow.apache.org/adbc/current/index.html) / [Ibis](https://ibis-project.org/)** for connecting many warehouses.
 - Warehouse cost tools (Select.dev, Keebo, Espresso AI) optimize warehouses, not query semantics; MCP gateways (Snowflake Cortex AI Gateway, MintMCP) govern access, not economics.
 
@@ -166,17 +166,17 @@ The most useful part of this repo. Nine bugs and one framing error; **most faile
 
 | Path | What it does |
 |---|---|
-| `src/same-task.mjs` | **The replication** — N agents, one task, sub-expression redundancy |
-| `src/shape.mjs` | AST query shape, subsumption, candidate synthesis |
-| `src/trace.mjs` | Log parsing, span reconstruction, billing model |
-| `src/context.mjs` | Trace context, sqlcommenter-style |
-| `src/mcp-db-server.mjs` · `src/snowflake-mcp-server.mjs` | Traced `run_sql` tools |
-| `src/databricks-genie-mcp-server.mjs` | Traced `ask_genie` — verification over a connection we don't own |
-| `src/real-agent.mjs` · `src/snowflake-agent.mjs` | Drive real Claude Code agents |
-| `src/verify-citations.mjs` | Value-grounded citation verification |
-| `src/cross-session.mjs` | N agents, different questions |
+| `agent_data_observability/same_task.py` | **The replication** — N agents, one task, sub-expression redundancy |
+| `agent_data_observability/shape.py` | sqlglot-based query shape, subsumption, candidate synthesis |
+| `agent_data_observability/trace.py` | Log parsing, span reconstruction, billing model |
+| `agent_data_observability/context.py` | Trace context, sqlcommenter-style |
+| `agent_data_observability/mcp_db_server.py` · `agent_data_observability/snowflake_mcp_server.py` | Traced `run_sql` tools |
+| `agent_data_observability/databricks_genie_mcp_server.py` | Traced `ask_genie` — verification over a connection we don't own |
+| `agent_data_observability/real_agent.py` · `agent_data_observability/snowflake_agent.py` | Drive real Claude Code agents |
+| `agent_data_observability/verify_citations.py` | Value-grounded citation verification |
+| `agent_data_observability/cross_session.py` | N agents, different questions |
 | `scripts/redset-baseline.sh` | Human/pipeline baseline from Redset |
-| `test/` | 37 unit tests + an end-to-end pipeline suite |
+| `tests/` | Unit tests + an end-to-end pipeline suite (pytest) |
 
 ## License
 

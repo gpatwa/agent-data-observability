@@ -65,6 +65,6 @@ ALTER USER $USER_NAME SET RSA_PUBLIC_KEY='$PUB';
 ────────────────────────────────────────────────────────────────────────
 Then verify (no exports needed — .env is loaded automatically):
 
-  npm run snowflake:check
+  adobs-snowflake-check
 
 EOF

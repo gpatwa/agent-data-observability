@@ -3,7 +3,7 @@
 > ⚠️ **Untested against a live workspace.** Written from the Genie Conversation
 > API documentation. The response-parsing functions have unit tests; the network
 > path has never run. Expect the first real run to surface a shape mismatch, and
-> treat `src/databricks.mjs` as the place to fix it.
+> treat `agent_data_observability/databricks.py` as the place to fix it.
 
 ## Why this adapter is different, and why that matters
 
@@ -47,8 +47,8 @@ what you would see, no more.
 ## Run it
 
 ```bash
-npm run databricks:check                      # preflight — same code path as the agent
-node src/databricks-agent.mjs "<question>"    # real Claude Code agent, ask_genie only
+adobs-databricks-check                         # preflight — same code path as the agent
+adobs-databricks-agent "<question>"            # real Claude Code agent, ask_genie only
 ```
 
 The preflight asks Genie one question and reports four things independently:

@@ -1,0 +1,40 @@
+[project]
+name = "agent-data-observability"
+version = "0.1.0"
+description = "A trace primitive for agent->database traffic: reconstruct an agent's query plan tree from warehouse logs, then measure redundancy and cost."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    "sqlglot>=25.0.0",
+    "mcp>=1.2.0,<2",
+    "psycopg[binary]>=3.2.0",
+    "snowflake-connector-python>=3.12.0",
+    "requests>=2.32.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[project.scripts]
+adobs-demo-sim = "agent_data_observability.agent_sim:main"
+adobs-real-agent = "agent_data_observability.real_agent:main"
+adobs-same-task = "agent_data_observability.same_task:main"
+adobs-cross-session = "agent_data_observability.cross_session:main"
+adobs-assemble = "agent_data_observability.assemble:main"
+adobs-snowflake-check = "agent_data_observability.snowflake_check:main"
+adobs-snowflake-cost = "agent_data_observability.snowflake_cost:main"
+adobs-snowflake-agent = "agent_data_observability.snowflake_agent:main"
+adobs-databricks-check = "agent_data_observability.databricks_check:main"
+adobs-databricks-agent = "agent_data_observability.databricks_agent:main"
+adobs-verify-citations = "agent_data_observability.verify_citations:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent_data_observability"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

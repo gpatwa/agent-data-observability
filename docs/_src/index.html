@@ -276,10 +276,10 @@
 
   <section>
     <h2>Run it</h2>
-    <div class="logline">npm install &amp;&amp; npm test
-node src/same-task.mjs --attempts 8    <span class="ts"># the replication</span>
-node src/cross-session.mjs             <span class="ts"># 8 agents, different questions</span>
-npm run baseline                       <span class="ts"># Redset human/pipeline baseline</span></div>
+    <div class="logline">uv pip install -e ".[dev]" &amp;&amp; pytest
+adobs-same-task --attempts 8           <span class="ts"># the replication</span>
+adobs-cross-session                    <span class="ts"># 8 agents, different questions</span>
+./scripts/redset-baseline.sh           <span class="ts"># Redset human/pipeline baseline</span></div>
     <div class="cta">
       <a class="primary" href="https://github.com/gpatwa/agent-data-observability">Source &amp; raw run logs &#8594;</a>
       <a href="https://bair.berkeley.edu/blog/2026/07/07/intelligence-is-free-now-what/">The original post (BAIR)</a>

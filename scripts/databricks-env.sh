@@ -51,4 +51,4 @@ ENVEOF
 chmod 600 "$ENV_FILE"
 
 echo "==> wrote $ENV_FILE (gitignored, mode 600)" >&2
-echo "==> next: npm run databricks:check" >&2
+echo "==> next: adobs-databricks-check" >&2

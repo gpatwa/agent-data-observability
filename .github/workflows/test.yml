@@ -7,20 +7,20 @@ on:
 
 jobs:
   unit:
-    # Fingerprinting, subsumption and candidate synthesis are pure functions —
-    # no database required. The end-to-end demo needs Postgres and is run
-    # manually via scripts/demo.sh.
+    # Subsumption and candidate synthesis are pure functions — no database
+    # required. The end-to-end demo needs Postgres and is run manually via
+    # scripts/demo.sh.
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: ['22.x', '24.x']
+        python: ['3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: ${{ matrix.node }}
-      - run: npm ci
-      - run: npm test
+          python-version: ${{ matrix.python }}
+      - run: pip install -e ".[dev]"
+      - run: pytest
 
   e2e:
     # Exercises the real claim: queries go into Postgres, the plan tree comes
@@ -29,10 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: '24.x'
+          python-version: '3.12'
       - name: Put PostgreSQL binaries on PATH
         run: echo "$(ls -d /usr/lib/postgresql/*/bin | tail -1)" >> "$GITHUB_PATH"
-      - run: npm ci
-      - run: npm run test:e2e
+      - run: pip install -e ".[dev]"
+      - run: ./scripts/e2e.sh
