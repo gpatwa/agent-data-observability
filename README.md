@@ -120,9 +120,10 @@ adobs-cross-session --concurrency 4             # 8 agents, different questions
 ```bash
 adobs-snowflake-check                           # Snowflake, agent authors SQL
 adobs-databricks-check                          # Databricks Genie, GENIE authors SQL
+adobs-duckdb-check                              # DuckDB, zero setup, local TPC-H
 ```
 
-Warehouse pilots: [`docs/SNOWFLAKE.md`](docs/SNOWFLAKE.md) (measured cost) and [`docs/DATABRICKS.md`](docs/DATABRICKS.md) (managed connection, untested against a live workspace).
+Warehouse pilots: [`docs/SNOWFLAKE.md`](docs/SNOWFLAKE.md) (measured cost), [`docs/DATABRICKS.md`](docs/DATABRICKS.md) (managed connection, untested against a live workspace), and [`docs/DUCKDB.md`](docs/DUCKDB.md) (zero-setup, no independent trace verification).
 
 ---
 
@@ -172,7 +173,8 @@ The most useful part of this repo. Nine bugs and one framing error; **most faile
 | `agent_data_observability/context.py` | Trace context, sqlcommenter-style |
 | `agent_data_observability/mcp_db_server.py` · `agent_data_observability/snowflake_mcp_server.py` | Traced `run_sql` tools |
 | `agent_data_observability/databricks_genie_mcp_server.py` | Traced `ask_genie` — verification over a connection we don't own |
-| `agent_data_observability/real_agent.py` · `agent_data_observability/snowflake_agent.py` | Drive real Claude Code agents |
+| `agent_data_observability/duckdb_mcp_server.py` | Traced `run_sql` over a local, zero-setup TPC-H warehouse |
+| `agent_data_observability/real_agent.py` · `agent_data_observability/snowflake_agent.py` · `agent_data_observability/duckdb_agent.py` | Drive real Claude Code agents |
 | `agent_data_observability/verify_citations.py` | Value-grounded citation verification |
 | `agent_data_observability/cross_session.py` | N agents, different questions |
 | `scripts/redset-baseline.sh` | Human/pipeline baseline from Redset |

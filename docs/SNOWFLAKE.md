@@ -107,4 +107,5 @@ The script reports which tier had data rather than returning silent zeros, so re
 ## What this does not do
 
 - Databricks now has its own adapter — see [`DATABRICKS.md`](DATABRICKS.md). The earlier reason for skipping it ("query tagging is less mature") has weakened: `system.query.history` now exposes `query_tags` as a `MAP<STRING,STRING>`. It was added for a better reason anyway — Genie is a *managed* connection we cannot inject into, which is the deployment shape a real verification product would face.
+- There is also a zero-setup [`DUCKDB.md`](DUCKDB.md) pilot for when a Snowflake trial isn't available — same TPC-H SF1 dataset, but no independent warehouse-log recovery, since DuckDB's own query log does not outlive the connection.
 - Result values are still written to `out/*.jsonl` in plaintext for the answer-grounding check. On a real warehouse that is a data-exfiltration surface — see the "Not production software" section of the README.
