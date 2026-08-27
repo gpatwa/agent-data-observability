@@ -126,7 +126,7 @@ adobs-databricks-check                          # Databricks Genie, GENIE author
 adobs-duckdb-check                              # DuckDB, zero setup, local TPC-H
 ```
 
-Warehouse pilots: [`docs/SNOWFLAKE.md`](docs/SNOWFLAKE.md) (measured cost), [`docs/DATABRICKS.md`](docs/DATABRICKS.md) (managed connection, untested against a live workspace), and [`docs/DUCKDB.md`](docs/DUCKDB.md) (zero-setup, no independent trace verification).
+Warehouse pilots: [`docs/SNOWFLAKE.md`](docs/SNOWFLAKE.md) (measured cost), [`docs/DATABRICKS.md`](docs/DATABRICKS.md) (managed connection, live-validated), and [`docs/DUCKDB.md`](docs/DUCKDB.md) (zero-setup, no independent trace verification).
 
 ---
 

@@ -1,9 +1,11 @@
 # Databricks Genie pilot
 
-> ⚠️ **Untested against a live workspace.** Written from the Genie Conversation
-> API documentation. The response-parsing functions have unit tests; the network
-> path has never run. Expect the first real run to surface a shape mismatch, and
-> treat `agent_data_observability/databricks.py` as the place to fix it.
+> ✅ **Live-validated.** `adobs-databricks-check` against a real workspace
+> (Free Edition, `samples.tpch`): conversation started, reached `COMPLETED`,
+> Genie returned 765 chars of generated SQL, and result rows were readable
+> (`lineitem`, 29,999,795 rows) — first real run, no shape-handling fixes
+> needed. `agent_data_observability/databricks.py` is still where to look if
+> a different workspace ever returns a shape the defensive fallbacks miss.
 
 ## Why this adapter is different, and why that matters
 
@@ -72,10 +74,12 @@ reconstructed from the agent's own declared reasoning, exactly as elsewhere.
 
 ## Known unknowns
 
-- **Response shapes are from docs, not observation.** `conversation_id` /
-  `message_id` field names, the `attachments` array layout, and the
-  statement-execution result envelope are all handled defensively with
-  fallbacks, but the first live run is the real test.
+- **Response shapes were originally from docs, not observation** — since
+  confirmed against a live workspace (see the banner above): `conversation_id`
+  / `message_id`, the `attachments` array layout, and the statement-execution
+  result envelope all matched on the first real preflight, no fallback paths
+  needed. One workspace and one query is not exhaustive coverage, so the
+  defensive handling stays in place.
 - **Genie is stateful.** The server reuses one conversation for the session, so
   follow-up questions carry context. That is closer to how Genie is meant to be
   used, and it means traces are not independent the way the same-task
