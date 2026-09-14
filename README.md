@@ -164,7 +164,16 @@ The most useful part of this repo. Nine bugs and one framing error; **most faile
 - **[OpenTelemetry database semantic conventions](https://opentelemetry.io/docs/specs/semconv/db/database-spans/) + sqlcommenter** — what `context.py` and `trace.py` are, as a spec. Using it deletes the log parser and the span assembler, since any OTel backend renders the trace.
 - **[sqlglot](https://github.com/tobymao/sqlglot)** — now what this repo uses (it moved to Python for exactly this). 30+ dialects, a real AST, and column-level lineage; on the simulated-agent demo run it modelled 89/93 query shapes, up from the ~1-in-4 ceiling the old regex/node-sql-parser approach hit on real analytics SQL.
 - **[ADBC](https://arrow.apache.org/adbc/current/index.html) / [Ibis](https://ibis-project.org/)** for connecting many warehouses.
-- Warehouse cost tools (Select.dev, Keebo, Espresso AI) optimize warehouses, not query semantics; MCP gateways (Snowflake Cortex AI Gateway, MintMCP) govern access, not economics.
+
+## Where this sits in the market (Sept 2026 scan)
+
+Checked four adjacent categories for anything already doing this. Nothing was:
+
+- **Agent/LLM observability platforms** (Langfuse, LangSmith, Arize, Braintrust, Datadog LLM Observability) trace the model-call graph — prompts, tool calls, latency, token cost, evals. A SQL tool call is one opaque span to them; nothing looks inside the query text for redundancy against other spans.
+- **Warehouse cost tools** (Select.dev, Keebo, Espresso AI) optimize compute sizing and autoscaling for whatever workload happens to run on the warehouse. Query semantics and agent authorship aren't inputs — a redundant query just runs faster on a better-sized warehouse.
+- **MCP/LLM gateway semantic caching** (Bifrost and others) matches a query to a restated version of *itself* — exact-hash or embedding similarity, 1:1. None do the N:1 "one rollup answers many genuinely different probes" that `shape.covering_set()` does.
+- The closest published relative is [*Semantic Caching for OLAP via LLM-Based Query Canonicalization*](https://arxiv.org/pdf/2602.19811) (2026): an LLM canonicalizes syntactically different but semantically *identical* queries onto one form. The mechanism differs from `shape.subsumes()` in the part that matters — an LLM call on every cache decision (latency, cost, and correctness that's probabilistic) versus a deterministic sqlglot AST parse that only serves a query when the answer already sits in a materialized anchor's own columns, verified against live Postgres before being trusted (see [Phase 2](docs/PHASE2.md)).
+- Even without automated tooling, the problem is real enough that [OpenAI's own data-agent team hand-restricted overlapping, redundant tool calls](https://openai.com/index/inside-our-in-house-data-agent/) rather than measuring and fixing the redundancy — which is roughly where the field stood outside this repo, as of this scan.
 
 ## Layout
 
