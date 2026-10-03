@@ -6,7 +6,7 @@ The premise, from [Intelligence is Free, Now What?](https://bair.berkeley.edu/bl
 
 I built the tracing, ran six conditions, and published that **the claim did not reproduce.**
 
-**That was wrong, and the error was mine.** I measured a different quantity than the one the claim is about. When I finally ran the published experiment — *N agents attempting the **same** task*, redundancy counted over **sub-expressions** — it reproduced at **17.7% distinct**, inside the stated range.
+**That was wrong, and the error was mine.** I measured a different quantity than the one the claim is about. When I finally ran the published experiment — *N agents attempting the **same** task*, redundancy counted over **sub-expressions** — it reproduced at **17.7% distinct** on the first run, inside the stated range. Rerunning it at larger n moved the number, and the 25-attempt rerun landed at **11.8%** (see below). The *direction* is stable; the exact percentage is a function of how many attempts you count.
 
 📉 **[Read the findings](https://gpatwa.github.io/agent-data-observability/)**
 
@@ -24,7 +24,7 @@ Everything I ran differed on **both** axes:
 | Unit | **sub-expressions** in the plan | **whole queries** |
 | Verdict | 10–20% distinct | "42.9%, doesn't reproduce" |
 
-So I refuted a neighbouring claim and reported it as the claim. Running it properly, with 8 agents on one question:
+So I refuted a neighbouring claim and reported it as the claim. Running it properly, with 8 agents on one question (the first run):
 
 | Level | Distinct | Reading |
 |---|---|---|
@@ -43,13 +43,26 @@ Broken out by sub-plan piece:
 | filtered scan | 47 | 12 | 25.5% |
 | whole aggregate | 47 | 27 | 57.4% |
 
-**Both readings are true simultaneously**, and that is the actual finding. Eight agents asked the same question 55 different ways — but underneath, they scanned the same table with the same 13 predicates computing the same 10 measures. The redundancy is entirely *below* the level of the query.
+**Both readings are true simultaneously**, and that is the actual finding. Eight agents asked the same question 55 different ways — but underneath, they scanned the same table with the same 13 predicates computing the same 10 measures. The redundancy is mostly *below* the level of the query (at 25 attempts some whole queries repeat too, but far less than their parts).
 
-Reproduce: `adobs-same-task --attempts 8`. Saved output: [`docs/runs/same-task-report.txt`](docs/runs/same-task-report.txt).
+### It moves with n, so I reran it
+
+One 8-attempt run is a point estimate, and the sub-expression number is not stable at that size. Same question, same harness, same model family, rerun later:
+
+| Attempts | Queries | Exact SQL distinct | AST-normalized distinct | **Sub-expressions distinct** |
+|---|---|---|---|---|
+| 8 (first run) | 55 | 98.2% | 92.7% | **17.7%** |
+| 4 (rerun) | 20 | 85.0% | 80.0% | 33.3% |
+| 8 (rerun) | 44 | 97.7% | 97.7% | 26.5% |
+| **25 (rerun)** | **118** | **76.3%** | **65.3%** | **11.8%** |
+
+Distinct share *falls* as attempts are added, because repeats accumulate; the two 8-attempt runs also differ from each other by 9 points, so run-to-run agent variance is large at this size. At 25 attempts the all-sub-expression figure is **11.8%, inside the paper's 10-20% band** (scan 1.9%, measure 5.7%, filter 7.3%, filtered scan 18.7%, grouping 15.2%, whole aggregate 42.1%). That is still half the paper's 50 attempts, on a different model and dataset, and the sub-expressions are approximated from query shape rather than decomposed from a real plan.
+
+Reproduce: `adobs-same-task --attempts 25`. Saved output: [`docs/runs/same-task-report.txt`](docs/runs/same-task-report.txt) (first run), [`docs/runs/same-task-25-report.txt`](docs/runs/same-task-25-report.txt) (25-attempt rerun, $2.97).
 
 ## What that implies
 
-**Result caching cannot capture this.** At 92.7% distinct whole queries, a cache keyed on the query — which is what Redshift, Snowflake and every LLM gateway ship — hits almost nothing. The prize needs **multi-query optimization, shared scans and partial-result reuse**, which is exactly what the paper proposes and what I spent six conditions arguing wasn't needed.
+**Result caching captures only a fraction of this, and I overstated it.** I first wrote that a cache keyed on the query — what Redshift, Snowflake and every LLM gateway ship — "hits almost nothing", on 92.7% distinct whole queries at 8 attempts. At 25 attempts whole queries are 65.3% distinct, so a query-keyed cache would have served about a third of them (41 of 118) after the first occurrence. That is real, but the sub-expression level is still where the sharing is: 11.8% distinct versus 65.3%. The larger prize needs **multi-query optimization, shared scans and partial-result reuse**, which is what the paper proposes and what I spent six conditions arguing wasn't needed.
 
 It also explains the human/pipeline baseline below rather than contradicting it. Those workloads repeat *whole queries*; agents repeat *fragments*. They need different machinery.
 
@@ -147,7 +160,7 @@ The most useful part of this repo. Nine bugs and one framing error; **most faile
 
 ## What this is not
 
-- **Small n.** 8 attempts, not the paper's 50. One dataset, two models.
+- **Small n.** 25 attempts at most, not the paper's 50, and the headline number shifted by 15 points between 8 and 25. One dataset, two models.
 - **Sub-expressions are approximated** from the query shape, not decomposed from a real plan. The direction is clear; the exact percentage is not authoritative.
 - **The parser models ~1 query in 4–7 of real analytics.** On the Snowflake TPC-H run, 1 of 4 — and the modellable one was a `min/max` date check while the three that answered the question all had 3–4 joins. Joins, CTEs, subqueries, `OR` and `HAVING` are declined rather than mis-parsed.
 - **Not production software.** Postgres-oriented, result values written to disk in plaintext, no auth or multi-tenancy. See below.

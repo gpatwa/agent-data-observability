@@ -1,0 +1,60 @@
+==> 25 independent attempts at ONE task
+    "Why did revenue drop in July 2026 compared to June 2026?"
+
+  ✓ same1     6 queries · $0.128
+  ✓ same4     5 queries · $0.129
+  ✓ same2     5 queries · $0.145
+  ✓ same3     5 queries · $0.133
+  ✓ same5     4 queries · $0.112
+  ✓ same6     5 queries · $0.129
+  ✓ same7     5 queries · $0.133
+  ✓ same8     6 queries · $0.117
+  ✓ same9     4 queries · $0.110
+  ✓ same10    4 queries · $0.103
+  ✓ same12    4 queries · $0.101
+  ✓ same11    5 queries · $0.121
+  ✓ same13    4 queries · $0.111
+  ✓ same14    4 queries · $0.113
+  ✓ same15    5 queries · $0.131
+  ✓ same16    6 queries · $0.130
+  ✓ same17    5 queries · $0.121
+  ✓ same20    4 queries · $0.110
+  ✓ same18    6 queries · $0.132
+  ✓ same19    4 queries · $0.113
+  ✓ same22    4 queries · $0.108
+  ✓ same21    4 queries · $0.109
+  ✓ same23    6 queries · $0.118
+  ✓ same24    4 queries · $0.102
+  ✓ same25    4 queries · $0.109
+
+==> LLM cost $2.97
+
+========================================================================
+SAME-TASK REPLICATION — 25 attempts, 118 queries
+========================================================================
+
+  queries per attempt: 6, 5, 5, 5, 4, 5, 5, 6, 4, 4, 5, 4, 4, 4, 6, 5, 5, 6, 4, 4, 4, 4, 6, 4, 4
+
+── WHOLE-QUERY LEVEL (what this repo measured previously) ─────
+  exact SQL          90/118 distinct   76.3%
+  AST-normalized     77/118 distinct   65.3%
+  covering set       19 anchors serve 73/107 servable
+  (11 queries unmodellable — joins/CTEs/schema lookups)
+
+── SUB-EXPRESSION LEVEL (what the paper measured) ─────────────
+  size   kind             total  distinct  distinct %
+  1      filter             261        19        7.3%
+  1      scan               107         2        1.9%
+  2      filtered_scan      107        20       18.7%
+  2      measure            331        19        5.7%
+  3      grouping           105        16       15.2%
+  4      full_agg           107        45       42.1%
+
+  ALL SUB-EXPRESSIONS  120/1018 distinct = 11.8%
+  paper reports: "often a small fraction of less than 10-20% of the total"
+  → REPRODUCES the published range
+
+  Caveats: this is an approximation of plan sub-expressions from the
+  query shape, not a real plan decomposition; the paper used BIRD with
+  50 attempts on GPT-4o-mini, this is 25 attempts on a frontier model.
+
