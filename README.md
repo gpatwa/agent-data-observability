@@ -19,7 +19,7 @@ Each of these is built and measured, not proposed:
 
 It runs against Postgres, Snowflake, Databricks Genie and DuckDB. Each adapter documents what it can and can't independently verify.
 
-**Not built yet, and next:** one trace that joins LLM token cost to warehouse credits for the same question. The two halves exist today; the per-run LLM cost is recorded and Snowflake credits are measured, but they don't yet land in one report. See [Roadmap](#roadmap).
+**New: one trace per question, LLM to warehouse.** On Snowflake, the agent run and every query it caused share one trace ID: the run is the root span carrying token count and LLM cost, and each query hangs under it. The queries are found in Snowflake's own query history by that ID rather than taken from the agent's log, and the two records are reconciled. `adobs-question-cost <tag>` prints the total and exports OpenTelemetry (OTLP/JSON) to any collector. Verified end to end in Jaeger on a live run: 1 root span, 3 query spans, all 3 matched between the agent's record and Snowflake's, $0.2378 LLM cost over 118,446 input tokens. Warehouse credits for that run are still pending, because Snowflake's attribution view lags hours; the command reports "pending" rather than estimating, and a later rerun fills them in.
 
 📉 **[Read the research behind it](https://gpatwa.github.io/agent-data-observability/)**
 
@@ -209,7 +209,7 @@ Checked four adjacent categories for anything already doing this. Nothing was:
 Ordered by what the cost-and-correctness position needs. Demand is not yet validated: I have measured agent spend on my own runs, not in anyone's production warehouse.
 
 **Next**
-- **Cost per question, end to end.** One trace from the LLM call through the tool call to the warehouse query and its credits, so a question's total cost is LLM tokens plus compute. Emitted as OpenTelemetry, so it lands in stacks companies already run rather than a parallel one. *Done when* one agent question reports token cost and measured Snowflake credits in a single trace.
+- **Cost per question, end to end.** *Built for Snowflake*: one trace from the agent run to each warehouse query, exported as OpenTelemetry and verified in Jaeger. *Not yet done*: measured credits in that trace, which waits on Snowflake's attribution lag. Then: carrying the same trace ID through an LLM gateway (LiteLLM and similar), so it works for agents this repo doesn't launch itself, and the same join for Databricks and Postgres.
 
 **Then, if teams want it**
 - **Cost controls.** Per-agent and per-team attribution and budgets, with the savings from shared rollups reported in dollars rather than milliseconds.

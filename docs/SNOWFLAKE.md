@@ -97,6 +97,29 @@ The script reports which tier had data rather than returning silent zeros, so re
 
 ---
 
+## 5. Total cost of one question, as one trace
+
+```bash
+adobs-snowflake-agent "<question>" --tag q1
+adobs-question-cost q1 --otlp-endpoint http://localhost:4318   # endpoint optional
+```
+
+The agent driver mints a trace ID and passes it to the MCP server, so the
+LLM run and every query it issues share one trace. `adobs-question-cost`
+then:
+
+- reads LLM tokens and cost from the run record (as reported by the `claude` CLI)
+- finds the trace's queries in `INFORMATION_SCHEMA.QUERY_HISTORY` by `QUERY_TAG`,
+  independently of the agent's own event log, and marks each query as seen by
+  both, by the warehouse only, or by the agent only
+- adds credits from `QUERY_ATTRIBUTION_HISTORY` when they exist, and says
+  "pending" or "partial" when they don't, with no estimate in between
+- writes `out/sf-<tag>-trace.otlp.json` and, given an endpoint, POSTs it to
+  `<endpoint>/v1/traces`
+
+Rerun the second command a few hours later to get measured credits into the
+same trace.
+
 ## Trial-account notes
 
 - **A trial is ~$400 of credits over 30 days.** These runs are small — a handful of TPC-H queries on an XS warehouse — but an idle warehouse still bills. `ALTER WAREHOUSE COMPUTE_WH SET AUTO_SUSPEND = 60;` if it is not already.

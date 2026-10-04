@@ -17,7 +17,9 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import secrets
 import sys
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -63,8 +65,16 @@ async def run_agent(question: str, model: Optional[str] = None, tag: str = "agen
     events_path = OUT / f"sf-{tag}-events.jsonl"
     answer_path = OUT / f"sf-{tag}-answer.txt"
     config_path = OUT / f"sf-{tag}-mcp.json"
+    run_path = OUT / f"sf-{tag}-run.json"
+
+    # One trace per question: the LLM run is the root span, and every
+    # warehouse query the agent issues is tagged with the same trace ID.
+    trace_id = secrets.token_hex(16)
+    root_span_id = secrets.token_hex(8)
 
     server_env = {
+        "TRACE_ID": trace_id,
+        "ROOT_SPAN_ID": root_span_id,
         "TRACE_EVENTS_PATH": str(events_path),
         "TRACE_QUESTION": question,
         "AGENT_MODEL": model or "claude-opus-5",
@@ -113,6 +123,7 @@ async def run_agent(question: str, model: Optional[str] = None, tag: str = "agen
     if model:
         args += ["--model", model]
 
+    started_unix_ms = time.time() * 1000
     try:
         proc = await asyncio.create_subprocess_exec(*args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         out_b, err_b = await proc.communicate()
@@ -120,12 +131,14 @@ async def run_agent(question: str, model: Optional[str] = None, tag: str = "agen
         # The credentials in this file are only needed for the subprocess
         # spawn above; do not leave them sitting on disk once it has started.
         config_path.unlink(missing_ok=True)
+    ended_unix_ms = time.time() * 1000
     out = out_b.decode()
     err = err_b.decode()
 
     answer = out
     cost = None
     turns = None
+    parsed = {}
     try:
         parsed = json.loads(out)
         answer = parsed.get("result", out)
@@ -139,10 +152,22 @@ async def run_agent(question: str, model: Optional[str] = None, tag: str = "agen
         return {"tag": tag, "question": question, "model": model, "ok": False, "queries": 0}
 
     answer_path.write_text(answer)
+    run_path.write_text(json.dumps({
+        "trace_id": trace_id, "root_span_id": root_span_id, "tag": tag,
+        "question": question, "agent_id": f"claude-code-{tag}",
+        "started_unix_ms": started_unix_ms, "ended_unix_ms": ended_unix_ms,
+        "llm": {
+            "cost_usd": cost, "num_turns": turns,
+            "duration_ms": parsed.get("duration_ms"),
+            "usage": parsed.get("usage"), "model_usage": parsed.get("modelUsage"),
+            "session_id": parsed.get("session_id"),
+        },
+    }, indent=2))
     stats = score_run(events_path, answer)
     return {
         "tag": tag, "question": question, "model": model, "ok": True,
         "cost": cost, "turns": turns, "answerPath": str(answer_path), "eventsPath": str(events_path),
+        "runPath": str(run_path), "traceId": trace_id,
         **stats,
     }
 

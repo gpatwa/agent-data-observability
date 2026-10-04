@@ -32,7 +32,11 @@ from .snowflake_ import connect, execute, set_tag
 
 EVENTS_PATH = Path(os.environ["TRACE_EVENTS_PATH"]) if os.environ.get("TRACE_EVENTS_PATH") \
     else Path(__file__).resolve().parent.parent / "out" / "snowflake-events.jsonl"
-TRACE_ID = secrets.token_hex(8)
+# OpenTelemetry-sized IDs (16-byte trace, 8-byte span). The driver passes in
+# the trace and root-span IDs so warehouse queries join the same trace as the
+# LLM call that caused them; run standalone, the server mints its own.
+TRACE_ID = os.environ.get("TRACE_ID") or secrets.token_hex(16)
+ROOT_SPAN_ID = os.environ.get("ROOT_SPAN_ID") or None
 AGENT_ID = os.environ.get("AGENT_ID", "snowflake-analyst")
 MODEL_ID = os.environ.get("AGENT_MODEL", "claude-opus-5")
 
@@ -113,8 +117,8 @@ async def run() -> None:
         label = f"q{seq}"
         span = {
             "trace_id": TRACE_ID,
-            "span_id": secrets.token_hex(6),
-            "parent_span_id": spans_by_label.get(follows_from) if follows_from else None,
+            "span_id": secrets.token_hex(8),
+            "parent_span_id": spans_by_label.get(follows_from, ROOT_SPAN_ID) if follows_from else ROOT_SPAN_ID,
             "agent_id": AGENT_ID,
             "model_id": MODEL_ID,
             "span_intent": intent or label,
@@ -125,6 +129,7 @@ async def run() -> None:
         rows: list[dict] = []
         error = None
         query_id = None
+        started_unix_ms = time.time() * 1000
         t0 = time.perf_counter()
         try:
             await asyncio.to_thread(set_tag, conn, span)  # native trace context — no SQL comment
@@ -142,7 +147,8 @@ async def run() -> None:
                 "label": label, "speculation_class": span["speculation_class"], "span_intent": span["span_intent"],
                 "snowflake_query_id": query_id,
                 "result_hash": hashlib.sha1(json.dumps(rows, default=str).encode()).hexdigest()[:12],
-                "rows": len(rows), "client_ms": client_ms, "values": scalar_values(rows), "error": error,
+                "rows": len(rows), "client_ms": client_ms, "started_unix_ms": started_unix_ms,
+                "values": scalar_values(rows), "error": error, "sql": sql,
             }, default=str) + "\n")
 
         if error:
