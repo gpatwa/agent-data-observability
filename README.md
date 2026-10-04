@@ -1,18 +1,39 @@
 # agent-data-observability
 
-**A harness for measuring what AI agents do to your data warehouse — and a correction to what I first published with it.**
+**See what your AI agents cost you on the warehouse — per agent, per question — and whether that spend produced a correct answer.**
 
-The premise, from [Intelligence is Free, Now What?](https://bair.berkeley.edu/blog/2026/07/07/intelligence-is-free-now-what/) (BAIR, 2026) and the UC Berkeley EPIC Data Lab's [agent-first data systems](https://arxiv.org/abs/2509.00997) paper: agents issue vast numbers of overlapping speculative queries, only 10–20% of sub-plans are distinct, and there is a large prize in sharing that computation.
+Agents now write SQL against Snowflake, Databricks and Postgres on their own. The tools that watch this split down the middle. Warehouse cost tools (Select.dev, Keebo, Espresso AI) see compute, but not which agent caused it or why. LLM observability (Langfuse, LangSmith, Arize, Datadog) sees model calls, but treats each query as one opaque span. Nobody connects **agent → question → query → credits → answer**, and nobody checks whether the spend actually reached a correct answer.
 
-I built the tracing, ran six conditions, and published that **the claim did not reproduce.**
+This repo does that, from a record the warehouse already keeps, with nothing in the data path.
 
-**That was wrong, and the error was mine.** I measured a different quantity than the one the claim is about. When I finally ran the published experiment — *N agents attempting the **same** task*, redundancy counted over **sub-expressions** — it reproduced at **17.7% distinct** on the first run, inside the stated range. Rerunning it at larger n moved the number, and the 25-attempt rerun landed at **11.8%** (see below). The *direction* is stable; the exact percentage is a function of how many attempts you count.
+## What it does today
 
-📉 **[Read the findings](https://gpatwa.github.io/agent-data-observability/)**
+Each of these is built and measured, not proposed:
+
+| | What you get | Measured |
+|---|---|---|
+| **Cost per agent and per question** | Trace context rides in a SQL comment or Snowflake `QUERY_TAG`. Every query is attributed to the agent, session and reasoning step that issued it | Snowflake: **$0.0897** per resolved task from `QUERY_ATTRIBUTION_HISTORY`, against $0.073 modelled |
+| **Which spend reached the answer** | Values from each result are checked against the agent's final answer. The agent's own claim about what it used is not trusted | Caught an agent claiming 3 queries when it used 4. Live run on DuckDB: 2/2 claims grounded |
+| **Where spend repeats** | Every query is parsed into its parts (scan, filter, measure, grouping), so repetition shows up even when the SQL text differs | 25 agents on one question: **11.8%** of query parts distinct, against 65.3% of whole queries |
+| **Cutting it** | Shared rollups are materialized once and answer many different agent queries, with each answer checked against the warehouse | 44 of 89 queries served from 9 rollups, **44/44** verified, ~30x lower latency |
+
+It runs against Postgres, Snowflake, Databricks Genie and DuckDB. Each adapter documents what it can and can't independently verify.
+
+**Not built yet, and next:** one trace that joins LLM token cost to warehouse credits for the same question. The two halves exist today; the per-run LLM cost is recorded and Snowflake credits are measured, but they don't yet land in one report. See [Roadmap](#roadmap).
+
+📉 **[Read the research behind it](https://gpatwa.github.io/agent-data-observability/)**
 
 ---
 
-## The correction
+## Proof: the research behind it
+
+This started as a test of a published claim: [Intelligence is Free, Now What?](https://bair.berkeley.edu/blog/2026/07/07/intelligence-is-free-now-what/) (BAIR, 2026) and the UC Berkeley EPIC Data Lab's [agent-first data systems](https://arxiv.org/abs/2509.00997) paper say agents issue vast numbers of overlapping speculative queries, that only 10–20% of sub-plans are distinct, and that there is a large prize in sharing that computation.
+
+I built the tracing, ran six conditions, and published that **the claim did not reproduce. That was wrong, and the error was mine.** I measured a different quantity than the one the claim is about. Run properly — *N agents attempting the **same** task*, redundancy counted over **sub-expressions** — it reproduced: 17.7% distinct on the first 8-attempt run, and **11.8%** on a 25-attempt rerun, inside the stated range. The direction is stable; the exact percentage depends on how many attempts you count.
+
+The measurement record matters for the product: the cost and redundancy numbers above come from the same harness, and the bugs it hit are listed in [What I got wrong](#what-i-got-wrong).
+
+### The correction
 
 The published measurement is specific. From the EPIC Lab paper: the BIRD text-to-SQL benchmark, **50 independent attempts per task**, redundancy defined as *"the proportion of distinct sub-expressions relative to total sub-expressions across multiple agent attempts."*
 
@@ -45,7 +66,7 @@ Broken out by sub-plan piece:
 
 **Both readings are true simultaneously**, and that is the actual finding. Eight agents asked the same question 55 different ways — but underneath, they scanned the same table with the same 13 predicates computing the same 10 measures. The redundancy is mostly *below* the level of the query (at 25 attempts some whole queries repeat too, but far less than their parts).
 
-### It moves with n, so I reran it
+#### It moves with n, so I reran it
 
 One 8-attempt run is a point estimate, and the sub-expression number is not stable at that size. Same question, same harness, same model family, rerun later:
 
@@ -60,7 +81,7 @@ Distinct share *falls* as attempts are added, because repeats accumulate; the tw
 
 Reproduce: `adobs-same-task --attempts 25`. Saved output: [`docs/runs/same-task-report.txt`](docs/runs/same-task-report.txt) (first run), [`docs/runs/same-task-25-report.txt`](docs/runs/same-task-25-report.txt) (25-attempt rerun, $2.97).
 
-## What that implies
+### What that implies
 
 **Result caching captures only a fraction of this, and I overstated it.** I first wrote that a cache keyed on the query — what Redshift, Snowflake and every LLM gateway ship — "hits almost nothing", on 92.7% distinct whole queries at 8 attempts. At 25 attempts whole queries are 65.3% distinct, so a query-keyed cache would have served about a third of them (41 of 118) after the first occurrence. That is real, but the sub-expression level is still where the sharing is: 11.8% distinct versus 65.3%. The larger prize needs **multi-query optimization, shared scans and partial-result reuse**, which is what the paper proposes and what I spent six conditions arguing wasn't needed.
 
@@ -68,7 +89,7 @@ It also explains the human/pipeline baseline below rather than contradicting it.
 
 **That machinery is now built and measured, not just proposed.** [`docs/PHASE2.md`](docs/PHASE2.md) materializes the covering-set rollups this repo's reports have always recommended into a local DuckDB cache, then answers the queries they cover by direct row selection — no re-derivation, so a wrong answer isn't possible by construction, only a declined one. Replayed against the simulated-agent demo trace: 44 of 89 aggregate queries answered from 9 materialized rollups, all 44 verified byte-for-byte against a fresh Postgres execution, 44 real warehouse round-trips avoided, ~30x measured (not modelled) latency.
 
-## Findings that still stand
+### Findings that still stand
 
 These were measured correctly and are unaffected — they are about different questions, not the same task:
 
@@ -78,7 +99,7 @@ These were measured correctly and are unaffected — they are about different qu
 - **The idle-tax finding was an artifact of n=1.** 96.7% of a lone agent's bill is idle warehouse time; with 8 concurrent agents sharing a warehouse it falls to **23.7%**.
 - **Human/pipeline traffic repeats whole queries heavily.** [Redset](https://github.com/amazon-science/redset) — 18.9M production Redshift SELECTs across 20 clusters — scored with this repo's metric: **91.3% median** redundancy, 70% of clusters above 80%. (CC BY-NC 4.0, attributed to Amazon.)
 
-## Measured cost, at last
+### Measured cost, at last
 
 Every dollar figure this project published was **modelled** — Snowflake billing rules applied to Postgres execution times. The Snowflake pilot replaces that with Snowflake's own `QUERY_ATTRIBUTION_HISTORY`:
 
@@ -94,11 +115,6 @@ Reproduce: `adobs-snowflake-cost --hours 72`. Saved: [`docs/runs/snowflake-measu
 
 Only 4 of 7 tagged queries had credits attributed — Snowflake attributes compute to queries that consumed meaningful warehouse time, so cheap metadata lookups contribute nothing. n=1 trace, TPC-H on an XS warehouse.
 
-## What survived as a tool
-
-The **trace primitive**. Query lineage, per-agent cost attribution, and verified answer-grounding all reconstruct from a log the warehouse already writes, with nothing in the data path. On Snowflake it is simpler still — trace context rides in the native `QUERY_TAG`, so there is no log parsing at all.
-
----
 
 ## How it works
 
@@ -178,7 +194,7 @@ The most useful part of this repo. Nine bugs and one framing error; **most faile
 - **[sqlglot](https://github.com/tobymao/sqlglot)** — now what this repo uses (it moved to Python for exactly this). 30+ dialects, a real AST, and column-level lineage; on the simulated-agent demo run it modelled 89/93 query shapes, up from the ~1-in-4 ceiling the old regex/node-sql-parser approach hit on real analytics SQL.
 - **[ADBC](https://arrow.apache.org/adbc/current/index.html) / [Ibis](https://ibis-project.org/)** for connecting many warehouses.
 
-## Where this sits in the market (Sept 2026 scan)
+## Why nobody does this yet (Sept 2026 scan)
 
 Checked four adjacent categories for anything already doing this. Nothing was:
 
@@ -188,7 +204,18 @@ Checked four adjacent categories for anything already doing this. Nothing was:
 - The closest published relative is [*Semantic Caching for OLAP via LLM-Based Query Canonicalization*](https://arxiv.org/pdf/2602.19811) (2026): an LLM canonicalizes syntactically different but semantically *identical* queries onto one form. The mechanism differs from `shape.subsumes()` in the part that matters — an LLM call on every cache decision (latency, cost, and correctness that's probabilistic) versus a deterministic sqlglot AST parse that only serves a query when the answer already sits in a materialized anchor's own columns, verified against live Postgres before being trusted (see [Phase 2](docs/PHASE2.md)).
 - Even without automated tooling, the problem is real enough that [OpenAI's own data-agent team hand-restricted overlapping, redundant tool calls](https://openai.com/index/inside-our-in-house-data-agent/) rather than measuring and fixing the redundancy — which is roughly where the field stood outside this repo, as of this scan.
 
-## Roadmap: from tracing one agent to tracing the pipeline
+## Roadmap
+
+Ordered by what the cost-and-correctness position needs. Demand is not yet validated: I have measured agent spend on my own runs, not in anyone's production warehouse.
+
+**Next**
+- **Cost per question, end to end.** One trace from the LLM call through the tool call to the warehouse query and its credits, so a question's total cost is LLM tokens plus compute. Emitted as OpenTelemetry, so it lands in stacks companies already run rather than a parallel one. *Done when* one agent question reports token cost and measured Snowflake credits in a single trace.
+
+**Then, if teams want it**
+- **Cost controls.** Per-agent and per-team attribution and budgets, with the savings from shared rollups reported in dollars rather than milliseconds.
+- **Data-access audit.** Which agent read which tables, on whose behalf, and whether the result was used. The traces already carry the agent and the SQL; this turns them into an audit view.
+
+### Later, only with demand: pipeline observability
 
 **Not built yet** — the trace primitive and the verification discipline both generalize past agents, and this is the sequence if they do. dbt already auto-tags every query it issues; Databricks shipped Query Tags into `system.query.history` (public preview, June 2026); Snowflake `QUERY_TAG` is already wired here — pipeline tooling is emitting exactly the kind of tags `context.py` invents for agents. That turns the first phase into "read tags that already exist," not "build pipeline tracing."
 

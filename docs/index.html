@@ -127,13 +127,13 @@
       <span class="label">July 2026</span>
     </div>
     <h1>I said the redundancy thesis was wrong.<br>I was measuring the wrong thing.</h1>
-    <p class="dek">Berkeley's EPIC Lab reported that when several AI agents attempt the same task, only 10&#8211;20% of query sub-plans are distinct &#8212; a large prize in shared computation. I built the tracing, ran six conditions, and published that it didn't reproduce. Then I read the paper properly and ran the actual experiment. <strong>It reproduces at 17.7%.</strong> The error was mine, and where it came from is the interesting part.</p>
+    <p class="dek">Berkeley's EPIC Lab reported that when several AI agents attempt the same task, only 10&#8211;20% of query sub-plans are distinct &#8212; a large prize in shared computation. I built the tracing, ran six conditions, and published that it didn't reproduce. Then I read the paper properly and ran the actual experiment. <strong>It reproduces: 17.7% on the first run, 11.8% on a 25-attempt rerun.</strong> The error was mine, and where it came from is the interesting part.</p>
   </header>
 
   <figure>
     <figcaption>
       <span class="fig-title">Distinct share, by unit of analysis</span>
-      <span class="fig-sub">Eight agents, one question, 55 queries. Lower means more repetition &#8212; more opportunity to share computation. The published claim is that sub-plans land under 20% distinct.</span>
+      <span class="fig-sub">First run: eight agents, one question, 55 queries. A 25-attempt rerun later landed at 11.8%. Lower means more repetition &#8212; more opportunity to share computation. The published claim is that sub-plans land under 20% distinct.</span>
     </figcaption>
 
     <div class="chart" role="img" aria-label="Chart of distinct share by unit of analysis. At sub-expression level: table scans 4.3 percent distinct, measures 8.5, filter predicates 11.3, all sub-expressions 17.7 percent which is inside the published under-20-percent band, groupings 21.7, filtered scans 25.5, whole aggregates 57.4. At whole-query level: AST-normalized 92.7 percent and exact SQL 98.2 percent, far outside the band.">
@@ -223,8 +223,8 @@
   <section>
     <h2>Why the unit changes the engineering</h2>
     <div class="col stack-sm">
-      <p>At <strong>92.7% distinct whole queries</strong>, a cache keyed on the query text hits essentially nothing. That is the layer every data warehouse and every LLM gateway actually ships &#8212; Redshift result caching, Snowflake result reuse, prompt-level semantic caches.</p>
-      <p>So the prize is real and it is unreachable by the mechanism most people would reach for first. Capturing it needs <strong>multi-query optimization, shared scans and partial-result reuse</strong> &#8212; which is precisely what the paper proposes, and precisely what I spent six conditions arguing was unnecessary.</p>
+      <p>Even at 25 attempts, <strong>65.3% of whole queries were distinct</strong>, so a cache keyed on the query text catches about a third of them &#8212; real, but small next to the sharing below the query level. That is the layer every data warehouse and every LLM gateway actually ships &#8212; Redshift result caching, Snowflake result reuse, prompt-level semantic caches.</p>
+      <p>So the prize is real, and mostly out of reach of the mechanism most people would reach for first. Capturing it needs <strong>multi-query optimization, shared scans and partial-result reuse</strong> &#8212; which is precisely what the paper proposes, and precisely what I spent six conditions arguing was unnecessary.</p>
     </div>
     <div class="callout good col">
       <p>This also reconciles a result that looked contradictory. Real human and pipeline warehouse traffic &#8212; 18.9M production Redshift queries via <a href="https://github.com/amazon-science/redset">Redset</a> &#8212; repeats <em>whole queries</em> at <strong>91.3%</strong> median. Agents repeat <em>fragments</em>. Both are redundant; they need entirely different machinery.</p>
@@ -300,7 +300,7 @@ adobs-cross-session                    <span class="ts"># 8 agents, different qu
   </section>
 
   <hr class="rule">
-  <p class="foot col">Eight attempts, not the paper's fifty; one dataset; Claude Opus 5 rather than GPT-4o-mini; Postgres rather than BIRD. Sub-expressions are approximated from the query shape rather than decomposed from a real execution plan &#8212; the direction is solid, the exact percentage is not authoritative. The shape extractor declines joins, CTEs, subqueries, <code>OR</code> and <code>HAVING</code> rather than mis-parsing them, so it models roughly one query in four of real analytics work. Chart palette validated for colour-vision deficiency against this surface.</p>
+  <p class="foot col">Eight attempts in the run charted here and 25 in the rerun, not the paper's fifty, and the headline moved from 17.7% to 11.8% between them; one dataset; Claude Opus 5 rather than GPT-4o-mini; Postgres rather than BIRD. Sub-expressions are approximated from the query shape rather than decomposed from a real execution plan &#8212; the direction is solid, the exact percentage is not authoritative. The shape extractor declines joins, CTEs, subqueries, <code>OR</code> and <code>HAVING</code> rather than mis-parsing them, so it models roughly one query in four of real analytics work. Chart palette validated for colour-vision deficiency against this surface.</p>
 
 </div>
 </body>
