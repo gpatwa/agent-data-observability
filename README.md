@@ -19,7 +19,17 @@ Each of these is built and measured, not proposed:
 
 It runs against Postgres, Snowflake, Databricks Genie and DuckDB. Each adapter documents what it can and can't independently verify.
 
-**New: one trace per question, LLM to warehouse.** On Snowflake, the agent run and every query it caused share one trace ID: the run is the root span carrying token count and LLM cost, and each query hangs under it. The queries are found in Snowflake's own query history by that ID rather than taken from the agent's log, and the two records are reconciled. `adobs-question-cost <tag>` prints the total and exports OpenTelemetry (OTLP/JSON) to any collector. Verified end to end in Jaeger on a live run: 1 root span, 3 query spans, all 3 matched between the agent's record and Snowflake's, $0.2378 LLM cost over 118,446 input tokens. Warehouse credits for that run are still pending, because Snowflake's attribution view lags hours; the command reports "pending" rather than estimating, and a later rerun fills them in.
+**New: one trace per question, LLM to warehouse.** On Snowflake, the agent run and every query it caused share one trace ID: the run is the root span carrying tokens and LLM cost, and each query hangs under it. The queries are found in Snowflake's own query history by that ID rather than taken from the agent's log, and the two records are reconciled. `adobs-question-cost <tag>` prints the result and exports OpenTelemetry (OTLP/JSON) to any collector; verified end to end in Jaeger.
+
+The live question, costed three ways — and the gap between them is the finding:
+
+| Warehouse cost, measured how | Warehouse | Question total | Warehouse share |
+|---|---|---|---|
+| Attributed to its queries (`QUERY_ATTRIBUTION_HISTORY`) | $0.022 | $0.26 | 9% |
+| **Billed estimate** (Snowflake's billing rules on its own query timestamps) | **$0.27** | **$0.51** | **53%** |
+| Metered for that hour (`WAREHOUSE_METERING_HISTORY`, an upper bound) | $0.39 | — | — |
+
+LLM cost was $0.2378 (118,446 input tokens) in every row. Per-query attribution leaves out idle time: three queries totalling about 1.5 s of execution kept an X-Small warehouse awake through its 300 s auto-suspend, and that idle time is most of what Snowflake bills. Read alone, attribution says the warehouse is a rounding error next to the LLM; on what you actually pay, it is half. The billed estimate assumes the warehouse was idle before the question — with several agents sharing a warehouse the idle cost is spread across them, which is the [idle-tax finding](#findings-that-still-stand) below.
 
 📉 **[Read the research behind it](https://gpatwa.github.io/agent-data-observability/)**
 
@@ -209,7 +219,7 @@ Checked four adjacent categories for anything already doing this. Nothing was:
 Ordered by what the cost-and-correctness position needs. Demand is not yet validated: I have measured agent spend on my own runs, not in anyone's production warehouse.
 
 **Next**
-- **Cost per question, end to end.** *Built for Snowflake*: one trace from the agent run to each warehouse query, exported as OpenTelemetry and verified in Jaeger. *Not yet done*: measured credits in that trace, which waits on Snowflake's attribution lag. Then: carrying the same trace ID through an LLM gateway (LiteLLM and similar), so it works for agents this repo doesn't launch itself, and the same join for Databricks and Postgres.
+- **Cost per question, end to end.** *Built for Snowflake*: one trace from the agent run to each warehouse query, with LLM cost, attributed credits, a billed estimate and the metered hour, exported as OpenTelemetry and verified in Jaeger. Next: carrying the same trace ID through an LLM gateway (LiteLLM and similar), so it works for agents this repo doesn't launch itself, and the same join for Databricks and Postgres.
 
 **Then, if teams want it**
 - **Cost controls.** Per-agent and per-team attribution and budgets, with the savings from shared rollups reported in dollars rather than milliseconds.

@@ -112,8 +112,15 @@ then:
 - finds the trace's queries in `INFORMATION_SCHEMA.QUERY_HISTORY` by `QUERY_TAG`,
   independently of the agent's own event log, and marks each query as seen by
   both, by the warehouse only, or by the agent only
-- adds credits from `QUERY_ATTRIBUTION_HISTORY` when they exist, and says
-  "pending" or "partial" when they don't, with no estimate in between
+- reports warehouse cost three ways, because they differ by an order of
+  magnitude: credits **attributed** to the queries (`QUERY_ATTRIBUTION_HISTORY`,
+  excludes idle time), a **billed estimate** (60 s minimum per resume, billed
+  until auto-suspend, applied to Snowflake's own query timestamps), and the
+  **metered** credits for the hours the run touched (an upper bound, since it
+  includes anything else on that warehouse). Attributed credits say "pending"
+  or "partial" until they land, with no estimate in between
+- reads query history from `INFORMATION_SCHEMA` for recent runs and from
+  `ACCOUNT_USAGE` once a run is older than its 7-day window
 - writes `out/sf-<tag>-trace.otlp.json` and, given an endpoint, POSTs it to
   `<endpoint>/v1/traces`
 

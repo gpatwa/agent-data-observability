@@ -71,3 +71,36 @@ def test_otlp_spans_form_one_tree_under_the_agent_run():
     assert parents["c" * 16] == ROOT and parents["d" * 16] == "c" * 16
     assert all(len(sp["spanId"]) == 16 for sp in spans)
     assert all(sp["startTimeUnixNano"].isdigit() for sp in spans)
+
+
+def test_billed_estimate_merges_queries_within_auto_suspend_into_one_resume():
+    from agent_data_observability.question_cost import billed_estimate
+
+    b = billed_estimate([(0, 1_000), (20_000, 21_000)], auto_suspend_sec=300, credits_per_hour=1)
+    assert b["resumes"] == 1
+    assert b["billed_sec"] == 21 + 300
+    assert abs(b["credits"] - 321 / 3600) < 1e-12
+
+
+def test_billed_estimate_starts_a_new_resume_after_the_warehouse_would_suspend():
+    from agent_data_observability.question_cost import billed_estimate
+
+    b = billed_estimate([(0, 1_000), (400_000, 401_000)], auto_suspend_sec=60, credits_per_hour=2)
+    assert b["resumes"] == 2
+    assert b["billed_sec"] == (1 + 60) * 2
+
+
+def test_billed_estimate_applies_the_60_second_minimum():
+    from agent_data_observability.question_cost import billed_estimate
+
+    b = billed_estimate([(0, 500)], auto_suspend_sec=0, credits_per_hour=1)
+    assert b["billed_sec"] == 60
+
+
+def test_report_carries_billed_and_metered_alongside_attributed():
+    s = build(_run(), [_event("q1", "c" * 16, "Q1")], [_wh("Q1")], {"Q1": 0.001}, 3.0,
+              {"size": "X-Small", "auto_suspend_sec": 300}, metered_credits=0.12)
+    assert s["billed_estimate"]["resumes"] == 1
+    assert s["billed_estimate"]["credits"] > s["warehouse_credits"]
+    assert abs(s["metered_cost_usd"] - 0.36) < 1e-9
+    assert s["total_billed_est_usd"] > s["total_cost_usd"]

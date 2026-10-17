@@ -7,6 +7,21 @@ Snowflake's own query history, not taken from the agent's event log, and the
 two are reconciled: a query the warehouse saw but the agent didn't report
 (or the reverse) is shown, not dropped.
 
+Warehouse cost is reported three ways, because they differ by an order of
+magnitude and a FinOps reader will ask which one is "the" cost:
+
+    attributed   QUERY_ATTRIBUTION_HISTORY: credits Snowflake assigns to each
+                 query. Measured, but excludes idle time and the per-resume
+                 minimum, so it understates what you pay.
+    billed est.  The warehouse's billing rules (60 s minimum per resume, runs
+                 until auto-suspend) applied to Snowflake's own query start and
+                 end times. Modelled, and assumes the warehouse was suspended
+                 before the first query.
+    metered      WAREHOUSE_METERING_HISTORY for the hours the run touched.
+                 Measured, but hourly, so it includes anything else that ran on
+                 the warehouse in those hours: an upper bound, not this
+                 question's cost.
+
 Credits come from ACCOUNT_USAGE.QUERY_ATTRIBUTION_HISTORY, which lags hours.
 Run this right after the agent and the warehouse side reads "pending"; run it
 again later and the same trace fills in measured credits. Nothing is
@@ -39,20 +54,37 @@ def load_run(tag: str) -> tuple[dict, list[dict]]:
     return run, events
 
 
+_QH_COLUMNS = """QUERY_ID, QUERY_TAG, QUERY_TEXT, START_TIME, END_TIME, TOTAL_ELAPSED_TIME,
+               EXECUTION_TIME, BYTES_SCANNED, WAREHOUSE_NAME, WAREHOUSE_SIZE, EXECUTION_STATUS"""
+# INFORMATION_SCHEMA.QUERY_HISTORY is near real-time but only covers 7 days;
+# ACCOUNT_USAGE.QUERY_HISTORY keeps a year but lags up to ~45 minutes. A
+# credits rerun naturally happens later, so both are needed.
+_INFO_SCHEMA_DAYS = 6
+
+
 def fetch_warehouse(conn, trace_id: str, since_unix_ms: float) -> list[dict]:
     """SELECTs Snowflake recorded under this trace ID, found by QUERY_TAG."""
+    import time
+
     from .snowflake_ import execute
 
     if not _HEX.match(trace_id):
         raise ValueError(f"not a 32-hex trace id: {trace_id!r}")
     since = datetime.datetime.fromtimestamp(since_unix_ms / 1000 - 300, tz=datetime.timezone.utc)
-    return execute(conn, """
-        select QUERY_ID, QUERY_TAG, QUERY_TEXT, START_TIME, END_TIME, TOTAL_ELAPSED_TIME,
-               EXECUTION_TIME, BYTES_SCANNED, WAREHOUSE_NAME, WAREHOUSE_SIZE, EXECUTION_STATUS
-        from table(information_schema.query_history(
-          end_time_range_start => %s::timestamp_ltz, result_limit => 10000))
-        where QUERY_TAG like %s and QUERY_TYPE = 'SELECT'
-        order by START_TIME""", [since.isoformat(), f'%"t":"{trace_id}"%'])["rows"]
+    pattern = f'%"t":"{trace_id}"%'
+    age_days = (time.time() * 1000 - since_unix_ms) / 86_400_000
+    if age_days < _INFO_SCHEMA_DAYS:
+        return execute(conn, f"""
+            select {_QH_COLUMNS}
+            from table(information_schema.query_history(
+              end_time_range_start => %s::timestamp_ltz, result_limit => 10000))
+            where QUERY_TAG like %s and QUERY_TYPE = 'SELECT'
+            order by START_TIME""", [since.isoformat(), pattern])["rows"]
+    return execute(conn, f"""
+        select {_QH_COLUMNS}
+        from snowflake.account_usage.query_history
+        where START_TIME >= %s::timestamp_ltz and QUERY_TAG like %s and QUERY_TYPE = 'SELECT'
+        order by START_TIME""", [since.isoformat(), pattern])["rows"]
 
 
 def fetch_credits(conn, query_ids: list[str]) -> dict[str, float]:
@@ -68,6 +100,55 @@ def fetch_credits(conn, query_ids: list[str]) -> dict[str, float]:
     return {r["QUERY_ID"]: float(r["CREDITS_ATTRIBUTED_COMPUTE"] or 0) for r in rows}
 
 
+CREDITS_PER_HOUR = {
+    "X-Small": 1, "Small": 2, "Medium": 4, "Large": 8, "X-Large": 16,
+    "2X-Large": 32, "3X-Large": 64, "4X-Large": 128, "5X-Large": 256, "6X-Large": 512,
+}
+MIN_BILLED_SEC = 60
+
+
+def fetch_warehouse_config(conn, name: str) -> Optional[dict]:
+    from .snowflake_ import execute
+
+    rows = execute(conn, "show warehouses like %s", [name])["rows"]
+    if not rows:
+        return None
+    r = {k.lower(): v for k, v in rows[0].items()}
+    return {"name": r.get("name"), "size": r.get("size"), "auto_suspend_sec": int(r.get("auto_suspend") or 0)}
+
+
+def fetch_metered(conn, name: str, start_unix_ms: float, end_unix_ms: float) -> Optional[float]:
+    from .snowflake_ import execute
+
+    s = datetime.datetime.fromtimestamp(start_unix_ms / 1000, tz=datetime.timezone.utc)
+    e = datetime.datetime.fromtimestamp(end_unix_ms / 1000, tz=datetime.timezone.utc)
+    rows = execute(conn, """
+        select sum(CREDITS_USED) CR, count(*) N
+        from snowflake.account_usage.warehouse_metering_history
+        where WAREHOUSE_NAME = %s and START_TIME < %s::timestamp_tz and END_TIME > %s::timestamp_tz""",
+        [name, e.isoformat(), s.isoformat()])["rows"]
+    if not rows or not rows[0]["N"]:
+        return None
+    return float(rows[0]["CR"] or 0)
+
+
+def billed_estimate(intervals: list[tuple[float, float]], auto_suspend_sec: int,
+                    credits_per_hour: float) -> dict:
+    """Snowflake's billing rules applied to query start/end times (ms). A new
+    resume starts when a query begins after the warehouse would have
+    auto-suspended; each resume bills max(60 s, busy span + auto-suspend)."""
+    if not intervals:
+        return {"resumes": 0, "billed_sec": 0.0, "credits": 0.0}
+    windows = []
+    for start, end in sorted(intervals):
+        if windows and start <= windows[-1][1] + auto_suspend_sec * 1000:
+            windows[-1][1] = max(windows[-1][1], end)
+        else:
+            windows.append([start, end])
+    billed = sum(max(MIN_BILLED_SEC, (e - s) / 1000 + auto_suspend_sec) for s, e in windows)
+    return {"resumes": len(windows), "billed_sec": billed, "credits": billed / 3600 * credits_per_hour}
+
+
 def _ms(ts) -> Optional[float]:
     if ts is None:
         return None
@@ -79,7 +160,8 @@ def _ms(ts) -> Optional[float]:
 
 
 def build(run: dict, events: list[dict], wh_rows: list[dict], credits: dict[str, float],
-          credit_price: float) -> dict:
+          credit_price: float, warehouse_config: Optional[dict] = None,
+          metered_credits: Optional[float] = None) -> dict:
     """Join the agent's record, the warehouse's record and credits into one
     summary plus OTLP spans. Pure: no I/O."""
     trace_id, root_id = run["trace_id"], run["root_span_id"]
@@ -124,11 +206,23 @@ def build(run: dict, events: list[dict], wh_rows: list[dict], credits: dict[str,
     usage = llm.get("usage") or {}
     input_tokens = sum(usage.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
 
+    billed = None
+    if warehouse_config and warehouse_config.get("size") in CREDITS_PER_HOUR:
+        spans_ms = [(q["start_ms"], q["end_ms"]) for q in have if q["start_ms"] and q["end_ms"]]
+        billed = billed_estimate(spans_ms, warehouse_config["auto_suspend_sec"],
+                                 CREDITS_PER_HOUR[warehouse_config["size"]])
+        billed.update(auto_suspend_sec=warehouse_config["auto_suspend_sec"], size=warehouse_config["size"],
+                      cost_usd=billed["credits"] * credit_price)
+
     summary = {
         "trace_id": trace_id, "tag": run.get("tag"), "question": run.get("question"),
         "llm_cost_usd": llm_cost, "input_tokens": input_tokens, "output_tokens": usage.get("output_tokens"),
         "warehouse_credits": wh_credits, "warehouse_cost_usd": wh_cost, "credits_status": status,
         "total_cost_usd": (llm_cost or 0) + wh_cost if status == "measured" else None,
+        "billed_estimate": billed,
+        "total_billed_est_usd": (llm_cost or 0) + billed["cost_usd"] if billed else None,
+        "metered_credits": metered_credits,
+        "metered_cost_usd": metered_credits * credit_price if metered_credits is not None else None,
         "queries": queries,
         "agent_only": sum(q["seen_by"] == "agent" for q in queries),
         "warehouse_only": sum(q["seen_by"] == "warehouse" for q in queries),
@@ -149,6 +243,11 @@ def build(run: dict, events: list[dict], wh_rows: list[dict], credits: dict[str,
             "agentdata.warehouse.cost_usd": wh_cost,
             "agentdata.warehouse.credits_status": status,
             "agentdata.total_cost_usd": summary["total_cost_usd"],
+            "agentdata.warehouse.billed_est.credits": billed["credits"] if billed else None,
+            "agentdata.warehouse.billed_est.resumes": billed["resumes"] if billed else None,
+            "agentdata.warehouse.billed_est.auto_suspend_sec": billed["auto_suspend_sec"] if billed else None,
+            "agentdata.total_billed_est_usd": summary["total_billed_est_usd"],
+            "agentdata.warehouse.metered_hour.credits": metered_credits,
             "agentdata.queries": len(queries),
         })]
     for q in queries:
@@ -193,17 +292,28 @@ def main() -> None:
     conn = connect()
     wh = fetch_warehouse(conn, run["trace_id"], run["started_unix_ms"])
     credits = fetch_credits(conn, [r["QUERY_ID"] for r in wh])
+    wh_name = next((r["WAREHOUSE_NAME"] for r in wh if r.get("WAREHOUSE_NAME")), None)
+    config = fetch_warehouse_config(conn, wh_name) if wh_name else None
+    metered = fetch_metered(conn, wh_name, run["started_unix_ms"], run["ended_unix_ms"]) if wh_name else None
     conn.close()
-    s = build(run, events, wh, credits, price)
+    s = build(run, events, wh, credits, price, config, metered)
 
     print(f"── QUESTION COST · trace {s['trace_id']} ─────────────────────")
     print(f"  question         {s['question']}")
     print(f"  LLM              {_usd(s['llm_cost_usd'])}   ({s['input_tokens']:,} in / {s['output_tokens'] or 0:,} out tokens, as reported by the claude CLI)")
     if s["credits_status"] == "pending":
-        print("  warehouse        pending — QUERY_ATTRIBUTION_HISTORY lags hours; rerun later")
+        print("  attributed       pending — QUERY_ATTRIBUTION_HISTORY lags hours; rerun later")
     else:
-        print(f"  warehouse        {_usd(s['warehouse_cost_usd'])}   ({s['warehouse_credits']:.6f} credits @ ${price}, {s['credits_status']})")
-    print(f"  total            {_usd(s['total_cost_usd']) if s['total_cost_usd'] is not None else 'not yet — warehouse side ' + s['credits_status']}")
+        print(f"  attributed       {_usd(s['warehouse_cost_usd'])}   ({s['warehouse_credits']:.6f} cr, {s['credits_status']}; excludes idle and the per-resume minimum)")
+    b = s["billed_estimate"]
+    if b:
+        print(f"  billed est.      {_usd(b['cost_usd'])}   ({b['credits']:.6f} cr: {b['resumes']} resume(s), {b['billed_sec']:.0f} s billed, "
+              f"auto-suspend {b['auto_suspend_sec']} s, {b['size']}; modelled from Snowflake's query times, assumes a cold start)")
+    if s["metered_credits"] is not None:
+        print(f"  metered hour(s)  {_usd(s['metered_cost_usd'])}   ({s['metered_credits']:.6f} cr — everything on the warehouse in those hours; an upper bound)")
+    print(f"  total            {_usd(s['total_cost_usd']) if s['total_cost_usd'] is not None else 'not yet — attributed side ' + s['credits_status']}  (LLM + attributed)")
+    if s["total_billed_est_usd"] is not None:
+        print(f"                   {_usd(s['total_billed_est_usd'])}  (LLM + billed est.)")
     print(f"\n  queries          {len(s['queries'])} "
           f"(warehouse-only {s['warehouse_only']}, agent-only {s['agent_only']})")
     for q in s["queries"]:
